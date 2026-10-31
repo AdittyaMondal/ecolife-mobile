@@ -12,11 +12,18 @@
     "900": "#14532d",
     "950": "#052e16"
   },
-  "background": { "DEFAULT": "#ffffff", "dark": "#052e16" },
-  "foreground": { "DEFAULT": "#14532d", "dark": "#f0fdf4" },
-  "card": { "DEFAULT": "#ffffff", "dark": "#14532d" },
-  "primary": { "DEFAULT": "#16a34a", "dark": "#22c55e" },
-  "muted": { "DEFAULT": "#f0fdf4", "dark": "#166534" },
-  "border": { "DEFAULT": "#dcfce7", "dark": "#166534" },
-  "destructive": { "DEFAULT": "#dc2626", "dark": "#f87171" }
+  "background": { "DEFAULT": "#ffffff", "dark": "#0a1410" },
+  "foreground": { "DEFAULT": "#052e16", "dark": "#ecfdf3" },
+  "card": { "DEFAULT": "#ffffff", "dark": "#11201a" },
+  "card-foreground": { "DEFAULT": "#052e16", "dark": "#ecfdf3" },
+  "primary": { "DEFAULT": "#16a34a", "dark": "#4ade80" },
+  "primary-foreground": { "DEFAULT": "#052e16", "dark": "#052e16" },
+  "secondary": { "DEFAULT": "#f0fdf4", "dark": "#16251e" },
+  "muted": { "DEFAULT": "#f1f5f3", "dark": "#16251e" },
+  "muted-foreground": { "DEFAULT": "#4b5a53", "dark": "#9fb3a9" },
+  "accent": { "DEFAULT": "#dcfce7", "dark": "#1d3b2c" },
+  "border": { "DEFAULT": "#dfe5e2", "dark": "#22362c" },
+  "input": { "DEFAULT": "#7d8d85", "dark": "#637a6e" },
+  "ring": { "DEFAULT": "#16a34a", "dark": "#4ade80" },
+  "destructive": { "DEFAULT": "#b91c1c", "dark": "#f87171" }
 }
