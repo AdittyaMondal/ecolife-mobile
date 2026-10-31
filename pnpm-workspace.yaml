@@ -1,0 +1,6 @@
+# React Native's Metro resolver and Expo autolinking both assume a flat node_modules. Without
+# a hoisted linker, anything reached through a transitive dep fails to resolve at bundle time —
+# e.g. `react-native-css-interop/jsx-runtime`, which NativeWind's jsxImportSource points at.
+#
+# pnpm 12 reads this here, NOT from .npmrc.
+nodeLinker: hoisted
