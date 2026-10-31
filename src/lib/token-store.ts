@@ -10,8 +10,24 @@ const REFRESH_KEY = 'ecolife.refreshToken';
 
 let accessToken: string | null = null;
 
+/**
+ * The Prism mock (`pnpm mock` in ecolife-server) enforces the contract's bearer auth and 401s
+ * without a token, while accepting any value. Login is Sprint 1, so until it lands this stands
+ * in — and it is fenced so it can only ever be sent to a loopback dev server on a 40xx port.
+ * A hardcoded token reaching a real backend is a far worse bug than an unviewable dev screen,
+ * so the fence is a whitelist of exact hosts, not a check for the absence of a real one.
+ */
+const LOOPBACK_MOCK_URL = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::40\d{2})(?:[/?#]|$)/;
+
+function mockBearer(): string | null {
+  if (!__DEV__) return null;
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (!baseUrl || !LOOPBACK_MOCK_URL.test(baseUrl)) return null;
+  return 'prism-mock-token';
+}
+
 export function getAccessToken(): string | null {
-  return accessToken;
+  return accessToken ?? mockBearer();
 }
 
 export function setAccessToken(token: string | null): void {

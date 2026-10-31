@@ -76,6 +76,17 @@ pnpm lint && pnpm typecheck && pnpm gen:api && npx expo-doctor
 | `nodeLinker: hoisted` in `pnpm-workspace.yaml`                    | Metro and Expo autolinking assume a flat `node_modules`. Without it, `react-native-css-interop/jsx-runtime` (NativeWind's `jsxImportSource`) fails to resolve at bundle time. pnpm 12 reads this from `pnpm-workspace.yaml`, **not** `.npmrc`.                     |
 | `expo.install.exclude: ["typescript", "react"]` in `package.json` | `typescript@5.9.3` and `react@19.3.1` are deliberate; SDK 58's table wants `~6.0.3` and `19.3.0`. Both satisfy every real peer range (`react-native@0.88.1` asks for `react@^19.3.0`). The exclude stops `expo-doctor` reporting the intentional pin as a failure. |
 
+### `expo-doctor` reports 3 patch mismatches — leave them
+
+`expo`, `expo-router` and `expo-sqlite` sit one patch behind what the SDK table wants. The
+newer patches exist but were published hours ago and the pnpm supply-chain policy refuses
+them, which is the policy doing its job. `npx expo install --fix` therefore fails with
+`ERR_PNPM_NO_MATCHING_VERSION`.
+
+Do **not** add them to `expo.install.exclude` to silence it — that hides the check
+permanently for a problem that ages out on its own. Re-run `npx expo install --fix` in a few
+days and it will succeed.
+
 ## Current state — Sprint 0
 
 Scaffolding only. There are no product features. Every screen but Home is a route stub.
