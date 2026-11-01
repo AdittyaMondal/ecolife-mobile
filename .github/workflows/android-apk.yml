@@ -47,10 +47,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-          # Caches ~/.gradle/caches and ~/.gradle/wrapper. This replaces
-          # gradle/actions/setup-gradle, which was here only for caching — one
-          # fewer third-party action with access to this job's secrets.
-          cache: gradle
+          # Deliberately NO `cache: gradle` here. It derives its cache key from
+          # hashFiles('**/*.gradle*'), and android/ does not exist yet — Expo
+          # generates it in the prebuild step below, so setup-java fails with
+          # "No file ... matched". Gradle caching happens after prebuild instead,
+          # with actions/cache, which is first-party either way.
 
       # --frozen-lockfile on purpose: it fails loudly when package.json and
       # pnpm-lock.yaml have drifted, rather than quietly resolving a different
@@ -115,6 +116,19 @@ jobs:
           # --no-install: pnpm already installed, and prebuild would otherwise
           # shell out to npm and flatten the hoisted layout Metro needs.
           pnpm exec expo prebuild --platform android --no-install
+
+      # After prebuild, because the key hashes the Gradle files prebuild writes.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          # A miss on the exact key still reuses the newest previous cache, so a
+          # dependency bump re-downloads only what actually changed.
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       # Release rather than debug: release bundles the JS into the APK, so the
       # artifact runs standalone. A debug APK expects a Metro server on the
