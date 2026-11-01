@@ -1,4 +1,6 @@
-import * as Calendar from 'expo-calendar';
+import { isRunningInExpoGo } from 'expo';
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 
 export type CalendarEventInput = {
   id: number;
@@ -10,48 +12,52 @@ export type CalendarEventInput = {
   venueAddress: string | null;
 };
 
-export async function addEventToGoogleCalendar(event: CalendarEventInput): Promise<string> {
-  const calendar = await writableCalendar();
-  const created = await calendar.createEvent({
-    title: event.title,
-    startDate: new Date(event.startAt),
-    endDate: new Date(endIso(event.startAt, event.endAt)),
-    location: [event.venueName, event.venueAddress].filter(Boolean).join(', ') || null,
-    notes: event.description,
-  });
-  if (!created.id) throw new Error('The calendar did not save this event.');
-  return created.id;
+/** Google event id when the Calendar API saved it. Null when Google Calendar was opened for the user to save. */
+export async function addEventToGoogleCalendar(event: CalendarEventInput): Promise<string | null> {
+  if (!canUseCalendarApi()) {
+    await openCalendarDraft(event);
+    return null;
+  }
+  const api = await import('./google-calendar-api');
+  return api.insertGoogleCalendarEvent(event);
 }
 
 export async function removeEventFromGoogleCalendar(eventId: string): Promise<void> {
+  if (!canUseCalendarApi()) return;
+  const api = await import('./google-calendar-api');
+  await api.deleteGoogleCalendarEvent(eventId);
+}
+
+function canUseCalendarApi(): boolean {
+  return Platform.OS !== 'web' && !isRunningInExpoGo();
+}
+
+async function openCalendarDraft(event: CalendarEventInput): Promise<void> {
+  const start = compactUtc(event.startAt);
+  const end = compactUtc(endIso(event.startAt, event.endAt));
+  const location = [event.venueName, event.venueAddress].filter(Boolean).join(', ');
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: event.title,
+    details: event.description,
+  });
+  if (location) params.set('location', location);
   try {
-    const existing = await Calendar.ExpoCalendarEvent.get(eventId);
-    await existing.delete();
+    await Linking.openURL(
+      `https://calendar.google.com/calendar/render?${params.toString()}&dates=${start}/${end}`,
+    );
   } catch {
-    // Already removed from the phone calendar.
+    throw new Error('This phone could not open Google Calendar.');
   }
 }
 
-async function writableCalendar() {
-  const permission = await Calendar.requestCalendarPermissions();
-  if (permission.status !== 'granted') {
-    throw new Error('Calendar permission was not granted.');
-  }
-  const calendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
-  const writable = calendars.filter((calendar) => calendar.allowsModifications);
-  const google = writable.find((calendar) => isGoogleCalendar(calendar));
-  const chosen = google ?? writable.find((calendar) => calendar.isPrimary) ?? writable[0];
-  if (!chosen) throw new Error('This phone has no calendar EcoLife can write to.');
-  return chosen;
-}
-
-function isGoogleCalendar(calendar: Calendar.ExpoCalendar): boolean {
-  const source = calendar.source;
-  const label = [source?.name, source?.type, calendar.ownerAccount, calendar.title]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  return label.includes('google');
+function compactUtc(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) throw new Error('This event has no valid time.');
+  return date
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 }
 
 function endIso(startIso: string, endIsoValue: string): string {

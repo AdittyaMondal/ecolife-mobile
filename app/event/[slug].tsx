@@ -46,30 +46,40 @@ export default function EventDetail() {
   async function rememberOnCalendar(current: NonNullable<typeof event>) {
     const existing = local.calendarEvents?.[String(current.id)];
     if (existing) {
-      return { text: 'This event is already on your calendar.', ok: true };
+      return { text: 'This event is already on your Google Calendar.', ok: true };
     }
     const savedOnDevice = current.sample || current.id < 0;
     try {
       const googleEventId = await addEventToGoogleCalendar(current);
-      await updateLocal((state) => ({
-        ...state,
-        calendarEvents: {
-          ...(state.calendarEvents ?? {}),
-          [String(current.id)]: googleEventId,
-        },
-      }));
+      if (googleEventId) {
+        await updateLocal((state) => ({
+          ...state,
+          calendarEvents: {
+            ...(state.calendarEvents ?? {}),
+            [String(current.id)]: googleEventId,
+          },
+        }));
+      }
+      if (!googleEventId) {
+        return {
+          text: savedOnDevice
+            ? 'Saved on this phone. Google Calendar is open — tap Save to keep the event.'
+            : 'You’re registered. Google Calendar is open — tap Save to keep the event.',
+          ok: true,
+        };
+      }
       return {
         text: savedOnDevice
-          ? 'Saved on this phone, and added to your calendar. This is not a venue pass.'
-          : 'You’re registered, and the event is on your calendar.',
+          ? 'Saved on this phone, and added to your Google Calendar. This is not a venue pass.'
+          : 'You’re registered, and the event is on your Google Calendar.',
         ok: true,
       };
     } catch (err) {
       const reason = errorMessage(err);
       return {
         text: savedOnDevice
-          ? `Saved on this phone. Your calendar was not updated: ${reason}`
-          : `You’re registered. Your calendar was not updated: ${reason}`,
+          ? `Saved on this phone. Google Calendar was not updated: ${reason}`
+          : `You’re registered. Google Calendar was not updated: ${reason}`,
         ok: false,
       };
     }
@@ -138,12 +148,12 @@ export default function EventDetail() {
             return { ...state, calendarEvents };
           });
           setMessage({
-            text: 'Registration cancelled, and the event was removed from your calendar.',
+            text: 'Registration cancelled, and the event was removed from your Google Calendar.',
             ok: true,
           });
         } catch (err) {
           setMessage({
-            text: `Registration cancelled. Your calendar still has the event: ${errorMessage(err)}`,
+            text: `Registration cancelled. Google Calendar still has the event: ${errorMessage(err)}`,
             ok: false,
           });
         }
@@ -167,7 +177,7 @@ export default function EventDetail() {
           <View className="gap-3">
             {onCalendar ? null : (
               <Button
-                label="Add to calendar"
+                label="Add to Google Calendar"
                 onPress={() => void addCalendar()}
                 loading={pending === 'calendar'}
                 disabled={pending !== null}

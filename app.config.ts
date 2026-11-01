@@ -45,9 +45,11 @@ const config: ExpoConfig = {
       },
     ],
     [
-      'expo-calendar',
+      '@react-native-google-signin/google-signin',
       {
-        calendarPermission: 'EcoLife adds events you join to your calendar.',
+        // Android matches the OAuth client by package name and signing certificate.
+        // This scheme is only the iOS URL type the plugin requires.
+        iosUrlScheme: 'com.googleusercontent.apps.789459681263-sovuuv1llrmccfijf2otrmorsdea2q3c',
       },
     ],
     [
