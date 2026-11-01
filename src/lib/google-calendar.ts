@@ -1,16 +1,12 @@
-import {
-  GoogleSignin,
-  isCancelledResponse,
-  isErrorWithCode,
-  isSuccessResponse,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
-
 /**
  * Android OAuth client for package `app.ecolife.mobile`.
  * Do not pass this as `webClientId` — that field must be a Web client.
  * Play Services selects this client from the app package and signing certificate.
+ *
+ * The native module is loaded on demand. Expo Go does not contain it; the EcoLife APK does.
  */
+type GoogleSignInModule = typeof import('@react-native-google-signin/google-signin');
+
 const ANDROID_CLIENT_ID =
   '789459681263-sovuuv1llrmccfijf2otrmorsdea2q3c.apps.googleusercontent.com';
 
@@ -26,11 +22,30 @@ export type CalendarEventInput = {
   venueAddress: string | null;
 };
 
+let signInModule: GoogleSignInModule | null = null;
 let configured = false;
 
-function ensureConfigured() {
+function googleSignIn(): GoogleSignInModule {
+  if (signInModule) return signInModule;
+  try {
+    // Required inside the function so Expo Go can open the app. The module is only
+    // present in the EcoLife APK, and a top-level import crashes Expo Go on load.
+    signInModule = require('@react-native-google-signin/google-signin') as GoogleSignInModule;
+    return signInModule;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('RNGoogleSignin') || message.includes('could not be found')) {
+      throw new Error(
+        'Google Sign-In is not inside Expo Go. Install the EcoLife APK and open that app.',
+      );
+    }
+    throw error;
+  }
+}
+
+async function ensureConfigured(mod: GoogleSignInModule) {
   if (configured) return;
-  GoogleSignin.configure({ scopes: [CALENDAR_SCOPE] });
+  mod.GoogleSignin.configure({ scopes: [CALENDAR_SCOPE] });
   configured = true;
 }
 
@@ -45,6 +60,7 @@ export async function addEventToGoogleCalendar(event: CalendarEventInput): Promi
     body: JSON.stringify(eventBody(event)),
   });
   if (response.status === 401) {
+    const { GoogleSignin } = googleSignIn();
     await GoogleSignin.clearCachedAccessToken(token);
     const retry = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
       method: 'POST',
@@ -68,6 +84,7 @@ export async function removeEventFromGoogleCalendar(googleEventId: string): Prom
   });
   if (response.status === 204 || response.status === 404 || response.status === 410) return;
   if (response.status === 401) {
+    const { GoogleSignin } = googleSignIn();
     await GoogleSignin.clearCachedAccessToken(token);
     const retry = await fetch(url, {
       method: 'DELETE',
@@ -80,9 +97,14 @@ export async function removeEventFromGoogleCalendar(googleEventId: string): Prom
 }
 
 async function calendarAccessToken(): Promise<string> {
+  const mod = googleSignIn();
+  const { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } =
+    mod;
   try {
-    ensureConfigured();
-    const playServices = await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    await ensureConfigured(mod);
+    const playServices = await GoogleSignin.hasPlayServices({
+      showPlayServicesUpdateDialog: true,
+    });
     if (!playServices) {
       throw new Error('Google Play services are missing or out of date on this phone.');
     }
@@ -113,19 +135,19 @@ async function calendarAccessToken(): Promise<string> {
     ) {
       throw error;
     }
-    throw authFailure(error);
+    throw authFailure(error, mod);
   }
 }
 
-function authFailure(error: unknown): Error {
-  if (isErrorWithCode(error)) {
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+function authFailure(error: unknown, mod: GoogleSignInModule): Error {
+  if (mod.isErrorWithCode(error)) {
+    if (error.code === mod.statusCodes.SIGN_IN_CANCELLED) {
       return new Error('Google sign-in was cancelled.');
     }
-    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    if (error.code === mod.statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
       return new Error('Google Play services are missing or out of date on this phone.');
     }
-    if (error.code === statusCodes.IN_PROGRESS) {
+    if (error.code === mod.statusCodes.IN_PROGRESS) {
       return new Error('Google sign-in is already open.');
     }
     if (String(error.code) === '10') {
