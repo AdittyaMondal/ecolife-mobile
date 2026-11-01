@@ -19,6 +19,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'app.ecolife.mobile',
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
@@ -43,6 +44,14 @@ const config: ExpoConfig = {
         // Sprint 3 (event scanner, §10.4). Declared now so the permission copy is reviewed once.
         cameraPermission: 'EcoLife uses the camera to scan event passes at check-in.',
         recordAudioAndroid: false,
+      },
+    ],
+    [
+      'expo-notifications',
+      {
+        icon: './assets/android-icon-foreground.png',
+        color: '#1B4D3E',
+        defaultChannel: 'default',
       },
     ],
   ],

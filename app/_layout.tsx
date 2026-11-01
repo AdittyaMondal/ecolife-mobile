@@ -19,6 +19,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MenuProvider } from '@/components/menu-sheet';
+import {
+  registerForPushNotificationsAsync,
+  setupNotificationResponseListener,
+} from '@/lib/notifications';
 import { colors } from '@/lib/theme';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { QueryProvider } from '@/providers/query-provider';
@@ -29,6 +33,16 @@ function Gate() {
   const auth = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  useEffect(() => {
+    if (auth.status === 'signedIn') {
+      registerForPushNotificationsAsync();
+      const unsub = setupNotificationResponseListener((path) => {
+        router.push(path as Href);
+      });
+      return () => unsub();
+    }
+  }, [auth.status, router]);
 
   useEffect(() => {
     if (auth.status === 'loading') return;
