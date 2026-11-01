@@ -488,6 +488,7 @@ export function useTrackModel() {
     isEmployee,
     orgQuestions: isEmployee ? ORG_QUESTIONS : [],
     savedOrg: local.orgAnswers[today] ?? {},
+    savedAnswers: deviceLog?.body.answers ?? null,
     pointsToday: local.checkInRewards[today]?.points ?? 0,
     categories: CATEGORY_META,
     submit,

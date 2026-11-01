@@ -344,15 +344,15 @@ export const COMMUTE_OPTIONS: ChoiceOption[] = [
   { value: 'cycle', label: 'Cycle' },
   { value: 'cab', label: 'Cab' },
   { value: 'auto_rickshaw', label: 'Auto' },
-  { value: 'work_from_home', label: 'Home' },
+  { value: 'work_from_home', label: 'Stayed home' },
 ];
 
 export const FOOD_OPTIONS: ChoiceOption[] = [
-  { value: 'vegan', label: 'Plant', hint: 'Meals without animal products' },
-  { value: 'vegetarian', label: 'Veg', hint: 'Vegetarian days average lower' },
-  { value: 'low', label: 'Low meat', hint: 'One meat meal' },
-  { value: 'standard', label: 'Standard', hint: 'A usual mix' },
-  { value: 'high', label: 'High', hint: 'Mostly meat meals' },
+  { value: 'vegan', label: 'Plant-based', hint: 'No animal products' },
+  { value: 'vegetarian', label: 'Vegetarian', hint: 'No meat' },
+  { value: 'low', label: 'A little meat', hint: 'One meat meal' },
+  { value: 'standard', label: 'Mixed', hint: 'A usual mix' },
+  { value: 'high', label: 'Mostly meat', hint: 'Meat at most meals' },
 ];
 
 export const AC_OPTIONS: ChoiceOption[] = [
