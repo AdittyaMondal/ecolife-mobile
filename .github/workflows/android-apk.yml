@@ -18,6 +18,8 @@ concurrency:
   group: android-apk-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only by default. The build job widens this to `contents: write` for
+# itself, because publishing a Release writes a tag and an asset.
 permissions:
   contents: read
 
@@ -26,6 +28,10 @@ jobs:
     name: Build release APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      # Scoped to this job rather than the workflow, so the write scope is
+      # visible next to the step that needs it.
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -203,6 +209,71 @@ jobs:
           # Long enough to be useful, short enough not to hoard storage.
           retention-days: 30
           if-no-files-found: error
+
+      # An artifact lives under its run, needs a GitHub login to download and
+      # expires in 30 days. A Release is a public, permanent, linkable page —
+      # which is where someone actually looks for "the app".
+      #
+      # ONE rolling pre-release rather than one per commit: a release for every
+      # push to main would bury the Releases tab in hundreds of entries. The
+      # `nightly` tag is retargeted to each new commit, so the page always
+      # offers the newest build and the URL never changes:
+      #   https://github.com/${{ github.repository }}/releases/tag/nightly
+      #
+      # `gh` is pre-installed on the runner, so this needs no third-party
+      # action — the same reason gradle/actions was dropped earlier.
+      - name: Publish the APK to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.apk.outputs.name }}
+        run: |
+          TAG=nightly
+
+          # A guard, not decoration: everything below deletes the tag it is
+          # given. Refuse anything that could be a real version.
+          case "$TAG" in
+            v*|V*|[0-9]*) echo "::error::Refusing to recreate release tag '$TAG' — it looks like a version."; exit 1 ;;
+          esac
+
+          # Written to a FILE, not captured with NOTES=$(cat <<EOF ...).
+          # A heredoc inside $( ) still honours quotes while bash scans for the
+          # closing paren, so a single apostrophe anywhere in the body is a
+          # syntax error — "Expo's" below was exactly that, and it fails at
+          # parse time, before the step runs. --notes-file sidesteps the whole
+          # class rather than one apostrophe.
+          cat > release-notes.md <<EOF
+          Automated build of \`main\`, replaced on every push.
+
+          | | |
+          |---|---|
+          | Commit | [\`${GITHUB_SHA:0:7}\`](${{ github.server_url }}/${{ github.repository }}/commit/$GITHUB_SHA) |
+          | Built | $(date -u '+%Y-%m-%d %H:%M UTC') |
+          | Run | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+
+          Install on a device with "unknown sources" allowed.
+
+          **This is a test build, not a store release.** Unless the signing
+          secrets are configured it is signed with Expo's debug key, so it
+          cannot be uploaded to Play and will not upgrade over a Play install —
+          uninstall any previous copy first. Push notifications only work when
+          the \`GOOGLE_SERVICES_JSON_BASE64\` secret is set; otherwise the build
+          carries a placeholder Firebase config.
+          EOF
+
+          # Delete and recreate rather than just re-uploading the asset: the
+          # tag has to MOVE to this commit, or the page keeps claiming to be a
+          # build it is not.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes --cleanup-tag
+          fi
+
+          gh release create "$TAG" "$APK" \
+            --target "$GITHUB_SHA" \
+            --title "Nightly — ${GITHUB_SHA:0:7}" \
+            --notes-file release-notes.md \
+            --prerelease
+
+          echo "::notice::Published $APK to ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG"
 
       # Keep the keystore out of the cache and off any later step.
       - name: Remove the keystore
