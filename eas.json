@@ -6,10 +6,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:4010/api/v1"
-      }
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",

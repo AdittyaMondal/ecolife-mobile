@@ -26,6 +26,10 @@ jobs:
     name: Build release APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+      GOOGLE_ANDROID_CLIENT_ID: ${{ vars.GOOGLE_ANDROID_CLIENT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +56,6 @@ jobs:
           # generates it in the prebuild step below, so setup-java fails with
           # "No file ... matched". Gradle caching happens after prebuild instead,
           # with actions/cache, which is first-party either way.
-
       # --frozen-lockfile on purpose: it fails loudly when package.json and
       # pnpm-lock.yaml have drifted, rather than quietly resolving a different
       # tree than anyone has locally. `nodeLinker: hoisted` comes from
@@ -104,14 +107,14 @@ jobs:
           JSON
           fi
 
-      # Baked into the JS bundle at build time, so it has to be right here and
-      # cannot be changed after the fact. Set the EXPO_PUBLIC_API_URL repository
-      # variable to point builds somewhere else.
+      # Baked into the JS bundle at build time. Set the repository variables
+      # EXPO_PUBLIC_API_URL and GOOGLE_ANDROID_CLIENT_ID. There is no fallback host.
       - name: Generate the native Android project
-        env:
-          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ecolife-core-mpx1fg-d137cf-86-107-77-229.sslip.io/api/v1' }}
-          EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
         run: |
+          if [ -z "$EXPO_PUBLIC_API_URL" ] || [ -z "$GOOGLE_ANDROID_CLIENT_ID" ]; then
+            echo "::error::Set repository variables EXPO_PUBLIC_API_URL and GOOGLE_ANDROID_CLIENT_ID."
+            exit 1
+          fi
           echo "API base: $EXPO_PUBLIC_API_URL"
           # --no-install: pnpm already installed, and prebuild would otherwise
           # shell out to npm and flatten the hoisted layout Metro needs.
