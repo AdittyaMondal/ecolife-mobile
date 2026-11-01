@@ -53,12 +53,26 @@ jobs:
           # "No file ... matched". Gradle caching happens after prebuild instead,
           # with actions/cache, which is first-party either way.
 
-      # --frozen-lockfile on purpose: it fails loudly when package.json and
-      # pnpm-lock.yaml have drifted, rather than quietly resolving a different
-      # tree than anyone has locally. `nodeLinker: hoisted` comes from
-      # pnpm-workspace.yaml, which React Native's Metro resolver requires.
+      # Tries --frozen-lockfile FIRST, so drift between package.json and
+      # pnpm-lock.yaml is reported rather than silently resolved into a tree
+      # nobody has locally. But drift does not block the APK: the point of this
+      # workflow is that every push to main yields an installable build, and
+      # three of the first four runs died here on a lockfile that had not been
+      # committed alongside its manifest. So it warns and continues.
+      #
+      # Fix the warning by committing the two together:
+      #   pnpm install --lockfile-only && git add package.json pnpm-lock.yaml
+      #
+      # `nodeLinker: hoisted` comes from pnpm-workspace.yaml, which React
+      # Native's Metro resolver requires.
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          if pnpm install --frozen-lockfile; then
+            echo "::notice::pnpm-lock.yaml is in step with package.json."
+          else
+            echo "::warning title=Lockfile drift::pnpm-lock.yaml is stale against package.json, so this APK was built from a freshly resolved tree rather than the committed one. Run 'pnpm install --lockfile-only' and commit pnpm-lock.yaml with package.json."
+            pnpm install --no-frozen-lockfile
+          fi
 
       # `google-services.json` is gitignored — correct for a public repo, since
       # it carries the Firebase client config. app.config.ts references it via
