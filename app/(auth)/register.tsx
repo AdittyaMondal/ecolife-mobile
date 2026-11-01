@@ -11,7 +11,7 @@ type AccountType = 'individual' | 'employee';
 
 export default function Register() {
   const insets = useSafeAreaInsets();
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>('individual');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -19,7 +19,7 @@ export default function Register() {
   const [employeeId, setEmployeeId] = useState('');
   const [organizationName, setOrganizationName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<null | 'password' | 'google'>(null);
 
   async function submit() {
     if (name.trim().length < 2) {
@@ -39,7 +39,7 @@ export default function Register() {
       return;
     }
     setError(null);
-    setPending(true);
+    setPending('password');
     try {
       await signUp({
         name,
@@ -52,7 +52,19 @@ export default function Register() {
     } catch (err) {
       setError(errorMessage(err, 'The account could not be created.'));
     } finally {
-      setPending(false);
+      setPending(null);
+    }
+  }
+
+  async function google() {
+    setError(null);
+    setPending('google');
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(errorMessage(err, 'Google sign-in failed.'));
+    } finally {
+      setPending(null);
     }
   }
 
@@ -75,6 +87,20 @@ export default function Register() {
         <T className="mt-2 text-base leading-6 text-muted-foreground">
           Individuals and organization employees use the same EcoLife login.
         </T>
+        <View className="mt-6 gap-4">
+          <Button
+            label="Continue with Google"
+            variant="outline"
+            onPress={() => void google()}
+            loading={pending === 'google'}
+            disabled={pending !== null}
+          />
+          <View className="flex-row items-center gap-3">
+            <View className="h-0.5 flex-1 bg-ink" />
+            <T className="text-muted-foreground">or</T>
+            <View className="h-0.5 flex-1 bg-ink" />
+          </View>
+        </View>
         <View className="mt-6 flex-row rounded-full border-2 border-ink bg-card p-1">
           <TypeChip
             label="Individual"
@@ -138,7 +164,12 @@ export default function Register() {
               {error}
             </T>
           ) : null}
-          <Button label="Create account" onPress={() => void submit()} loading={pending} />
+          <Button
+            label="Create account"
+            onPress={() => void submit()}
+            loading={pending === 'password'}
+            disabled={pending !== null}
+          />
         </View>
         <View className="mt-8 flex-row justify-center gap-1">
           <T className="text-muted-foreground">Already have an account?</T>

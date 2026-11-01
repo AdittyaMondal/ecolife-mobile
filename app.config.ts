@@ -4,6 +4,19 @@ import type { ExpoConfig } from 'expo/config';
  * `scheme: 'ecolife'` is load-bearing: event passes deep-link as `ecolife://pass/{code}`
  * (PRD-v2 §6.6.2), and the server's MOBILE_SCHEME env var must match it.
  */
+
+/** Android OAuth client id from `.env.local`. The iOS URL scheme is that id, reversed. */
+function googleIosUrlScheme(): string {
+  const clientId = process.env.GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '';
+  const prefix = clientId.replace(/\.apps\.googleusercontent\.com$/, '');
+  if (!prefix || prefix === clientId) {
+    throw new Error(
+      'Set GOOGLE_ANDROID_CLIENT_ID in .env.local to the Android OAuth client id (….apps.googleusercontent.com).',
+    );
+  }
+  return `com.googleusercontent.apps.${prefix}`;
+}
+
 const config: ExpoConfig = {
   name: 'EcoLife',
   slug: 'ecolife',
@@ -51,6 +64,14 @@ const config: ExpoConfig = {
         icon: './assets/android-icon-foreground.png',
         color: '#1B4D3E',
         defaultChannel: 'default',
+      },
+    ],
+    [
+      '@react-native-google-signin/google-signin',
+      {
+        // Android matches the OAuth client by package name and signing certificate.
+        // This scheme is only the iOS URL type the plugin requires.
+        iosUrlScheme: googleIosUrlScheme(),
       },
     ],
     [

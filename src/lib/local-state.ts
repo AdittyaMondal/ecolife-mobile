@@ -38,6 +38,7 @@ export function emptyLocal(): LocalUserState {
     redemptions: [],
     spentCoins: 0,
     eventRegistrations: [],
+    calendarEvents: {},
     orgAnswers: {},
     dismissedTips: [],
     acceptedTips: [],
@@ -57,6 +58,7 @@ export async function readLocal(userId: number): Promise<LocalUserState> {
       checkInRewards: parsed.checkInRewards ?? {},
       logs: parsed.logs ?? {},
       pendingLogs: parsed.pendingLogs ?? [],
+      calendarEvents: parsed.calendarEvents ?? {},
       commute: {
         home: parsed.commute?.home ?? null,
         work: parsed.commute?.work ?? null,

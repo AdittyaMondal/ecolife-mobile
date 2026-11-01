@@ -11,12 +11,12 @@ import { useAuth } from '@/providers/auth-provider';
 
 export default function Login() {
   const insets = useSafeAreaInsets();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<null | 'password' | 'google'>(null);
 
   async function submit() {
     const nextEmail = email.trim().toLowerCase();
@@ -29,13 +29,25 @@ export default function Login() {
       return;
     }
     setError(null);
-    setPending(true);
+    setPending('password');
     try {
       await signIn(nextEmail, password);
     } catch (err) {
       setError(errorMessage(err, 'Those details were not accepted.'));
     } finally {
-      setPending(false);
+      setPending(null);
+    }
+  }
+
+  async function google() {
+    setError(null);
+    setPending('google');
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(errorMessage(err, 'Google sign-in failed.'));
+    } finally {
+      setPending(null);
     }
   }
 
@@ -59,9 +71,21 @@ export default function Login() {
           Welcome back
         </T>
         <T className="mt-2 text-base leading-6 text-muted-foreground">
-          Sign in with the email and password on your EcoLife account.
+          Sign in with Google, or with the email and password on your EcoLife account.
         </T>
         <View className="mt-8 gap-4">
+          <Button
+            label="Continue with Google"
+            variant="outline"
+            onPress={() => void google()}
+            loading={pending === 'google'}
+            disabled={pending !== null}
+          />
+          <View className="flex-row items-center gap-3">
+            <View className="h-0.5 flex-1 bg-ink" />
+            <T className="text-muted-foreground">or</T>
+            <View className="h-0.5 flex-1 bg-ink" />
+          </View>
           <Field
             label="Email"
             autoCapitalize="none"
@@ -98,7 +122,12 @@ export default function Login() {
               {error}
             </T>
           ) : null}
-          <Button label="Sign in" onPress={() => void submit()} loading={pending} />
+          <Button
+            label="Sign in"
+            onPress={() => void submit()}
+            loading={pending === 'password'}
+            disabled={pending !== null}
+          />
         </View>
         <View className="mt-8 flex-row justify-center gap-1">
           <T className="text-muted-foreground">New to EcoLife?</T>

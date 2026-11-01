@@ -3,15 +3,15 @@ import { measuredCommuteKm, subscribeTrail } from '@/lib/commute-trail';
 import { useAuth } from '@/providers/auth-provider';
 import type { TripMode } from '@/types/domain';
 
-/** One-way kilometres observed from this phone today. Null until both ends exist. */
-export function useMeasuredCommute(mode: TripMode) {
+/** One-way kilometres observed from this phone today. Null until a mode and both ends exist. */
+export function useMeasuredCommute(mode: TripMode | null) {
   const { user } = useAuth();
   const zone = user?.timezone || 'Asia/Kolkata';
   const [km, setKm] = useState<number | null>(mode === 'work_from_home' ? 0 : null);
 
   useEffect(() => {
-    if (mode === 'work_from_home') {
-      setKm(0);
+    if (!mode || mode === 'work_from_home') {
+      setKm(mode === 'work_from_home' ? 0 : null);
       return;
     }
     let cancel = false;

@@ -9,7 +9,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { api } from '@/lib/fetcher';
+import { ApiError, api } from '@/lib/fetcher';
+import { googleAccessToken } from '@/lib/google-auth';
 import { deviceTimeZone } from '@/lib/ids';
 import { emptyLocal, readLocal, writeLocal } from '@/lib/local-state';
 import { onSessionLost } from '@/lib/session-events';
@@ -32,6 +33,7 @@ type AuthContextValue = {
   onboardingDone: boolean;
   isEmployee: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (input: SignUpInput) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -118,6 +120,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [adopt, queryClient],
   );
 
+  const signInWithGoogle = useCallback(async () => {
+    const accessToken = await googleAccessToken();
+    try {
+      const result = await api.post<AuthResult>('/auth/google', {
+        accessToken,
+        timezone: deviceTimeZone(),
+      });
+      await adopt(result.user, result.session);
+      await queryClient.invalidateQueries();
+    } catch (error) {
+      if (error instanceof ApiError && error.httpStatus === 404) {
+        throw new Error('Google sign-in is not turned on for this EcoLife server yet.');
+      }
+      throw error;
+    }
+  }, [adopt, queryClient]);
+
   const signUp = useCallback(
     async (input: SignUpInput) => {
       const result = await api.post<AuthResult>('/auth/register', {
@@ -175,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onboardingDone,
       isEmployee,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
       refreshUser,
@@ -188,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onboardingDone,
       isEmployee,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
       refreshUser,
