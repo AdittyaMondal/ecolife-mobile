@@ -183,7 +183,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserState(me);
   }, []);
 
-  const onboardingDone = Boolean(user?.onboardingComplete || local.onboardingComplete);
+  /**
+   * The SERVER decides, once we have its answer.
+   *
+   * This was `user?.onboardingComplete || local.onboardingComplete`, so a
+   * locally cached `true` outranked the server saying `false` — and that flag
+   * is sticky, written to `ecolife.user.{id}` and read back on every launch.
+   * Once set for an account it could never be cleared from the server side, so
+   * an account the server considers un-onboarded would skip onboarding
+   * permanently.
+   *
+   * The local flag now only covers the window BEFORE the user object loads
+   * (a cold start offline), which is what it was there for.
+   *
+   * Tradeoff, deliberately taken: someone who finishes onboarding while
+   * offline has `local.onboardingComplete = true` and no server record, so
+   * once `user` loads they are asked again. That is the safe direction — being
+   * asked twice is recoverable, silently skipping is not — but it is why
+   * `finish()`'s offline path should eventually replay to the server the way
+   * `pendingLogs` does.
+   */
+  const onboardingDone = user
+    ? Boolean(user.onboardingComplete)
+    : Boolean(local.onboardingComplete);
+
+  /**
+   * Make the disagreement visible. This is exactly the state that is invisible
+   * on a device and impossible to diagnose from a bug report.
+   */
+  if (user && local.onboardingComplete && !user.onboardingComplete) {
+    console.warn(
+      `[auth] onboarding: server says incomplete for user ${user.id} but this device has a ` +
+        'local completed flag. Following the server. An onboarding finished offline may not ' +
+        'have reached the API.',
+    );
+  }
   const isEmployee = Boolean(user?.organization || local.employeeId);
 
   const value = useMemo<AuthContextValue>(
