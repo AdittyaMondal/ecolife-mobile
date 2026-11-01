@@ -1,16 +1,4 @@
-/**
- * Android OAuth client for package `app.ecolife.mobile`.
- * Do not pass this as `webClientId` — that field must be a Web client.
- * Play Services selects this client from the app package and signing certificate.
- *
- * The native module is loaded on demand. Expo Go does not contain it; the EcoLife APK does.
- */
-type GoogleSignInModule = typeof import('@react-native-google-signin/google-signin');
-
-const ANDROID_CLIENT_ID =
-  '789459681263-sovuuv1llrmccfijf2otrmorsdea2q3c.apps.googleusercontent.com';
-
-const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+import * as Calendar from 'expo-calendar';
 
 export type CalendarEventInput = {
   id: number;
@@ -22,200 +10,54 @@ export type CalendarEventInput = {
   venueAddress: string | null;
 };
 
-let signInModule: GoogleSignInModule | null = null;
-let configured = false;
-
-async function googleSignIn(): Promise<GoogleSignInModule> {
-  if (signInModule) return signInModule;
-  try {
-    // import() stays unloaded until a calendar write. A literal require() is hoisted
-    // by Metro and crashes Expo Go as soon as this file loads.
-    signInModule = await import('@react-native-google-signin/google-signin');
-    return signInModule;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '';
-    if (message.includes('RNGoogleSignin') || message.includes('could not be found')) {
-      throw new Error(
-        'Google Sign-In is not inside Expo Go. Install the EcoLife APK and open that app.',
-      );
-    }
-    throw error;
-  }
-}
-
-async function ensureConfigured(mod: GoogleSignInModule) {
-  if (configured) return;
-  mod.GoogleSignin.configure({ scopes: [CALENDAR_SCOPE] });
-  configured = true;
-}
-
 export async function addEventToGoogleCalendar(event: CalendarEventInput): Promise<string> {
-  const token = await calendarAccessToken();
-  const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(eventBody(event)),
+  const calendar = await writableCalendar();
+  const created = await calendar.createEvent({
+    title: event.title,
+    startDate: new Date(event.startAt),
+    endDate: new Date(endIso(event.startAt, event.endAt)),
+    location: [event.venueName, event.venueAddress].filter(Boolean).join(', ') || null,
+    notes: event.description,
   });
-  if (response.status === 401) {
-    const { GoogleSignin } = await googleSignIn();
-    await GoogleSignin.clearCachedAccessToken(token);
-    const retry = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${await calendarAccessToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(eventBody(event)),
-    });
-    return readCreatedId(retry);
-  }
-  return readCreatedId(response);
+  if (!created.id) throw new Error('The calendar did not save this event.');
+  return created.id;
 }
 
-export async function removeEventFromGoogleCalendar(googleEventId: string): Promise<void> {
-  const token = await calendarAccessToken();
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(googleEventId)}`;
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (response.status === 204 || response.status === 404 || response.status === 410) return;
-  if (response.status === 401) {
-    const { GoogleSignin } = await googleSignIn();
-    await GoogleSignin.clearCachedAccessToken(token);
-    const retry = await fetch(url, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${await calendarAccessToken()}` },
-    });
-    if (retry.status === 204 || retry.status === 404 || retry.status === 410) return;
-    throw new Error(await googleError(retry));
-  }
-  throw new Error(await googleError(response));
-}
-
-async function calendarAccessToken(): Promise<string> {
-  const mod = await googleSignIn();
-  const { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } =
-    mod;
+export async function removeEventFromGoogleCalendar(eventId: string): Promise<void> {
   try {
-    await ensureConfigured(mod);
-    const playServices = await GoogleSignin.hasPlayServices({
-      showPlayServicesUpdateDialog: true,
-    });
-    if (!playServices) {
-      throw new Error('Google Play services are missing or out of date on this phone.');
-    }
-    let signedIn = false;
-    try {
-      const silent = await GoogleSignin.signInSilently();
-      signedIn = silent.type === 'success';
-    } catch (error) {
-      if (!isErrorWithCode(error) || error.code !== statusCodes.SIGN_IN_REQUIRED) throw error;
-    }
-    if (!signedIn) {
-      const signed = await GoogleSignin.signIn();
-      if (isCancelledResponse(signed) || !isSuccessResponse(signed)) {
-        throw new Error('Google sign-in was cancelled.');
-      }
-    }
-    const scoped = await GoogleSignin.addScopes({ scopes: [CALENDAR_SCOPE] });
-    if (scoped && (isCancelledResponse(scoped) || !isSuccessResponse(scoped))) {
-      throw new Error('Calendar access was not granted.');
-    }
-    const { accessToken } = await GoogleSignin.getTokens();
-    if (!accessToken) throw new Error('Google did not return a calendar token.');
-    return accessToken;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.message.startsWith('Google') || error.message.startsWith('Calendar'))
-    ) {
-      throw error;
-    }
-    throw authFailure(error, mod);
-  }
-}
-
-function authFailure(error: unknown, mod: GoogleSignInModule): Error {
-  if (mod.isErrorWithCode(error)) {
-    if (error.code === mod.statusCodes.SIGN_IN_CANCELLED) {
-      return new Error('Google sign-in was cancelled.');
-    }
-    if (error.code === mod.statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      return new Error('Google Play services are missing or out of date on this phone.');
-    }
-    if (error.code === mod.statusCodes.IN_PROGRESS) {
-      return new Error('Google sign-in is already open.');
-    }
-    if (String(error.code) === '10') {
-      return new Error(
-        `Google rejected this build. Android client ${ANDROID_CLIENT_ID} must list package app.ecolife.mobile and this APK’s SHA-1.`,
-      );
-    }
-  }
-  if (error instanceof Error) return error;
-  return new Error('Could not open Google Calendar.');
-}
-
-function eventBody(event: CalendarEventInput) {
-  const start = dateTime(event.startAt);
-  const location = [event.venueName, event.venueAddress].filter(Boolean).join(', ');
-  return {
-    summary: event.title,
-    description: event.description,
-    location: location || undefined,
-    start: { dateTime: start },
-    end: { dateTime: endTime(event.startAt, event.endAt) },
-    extendedProperties: { private: { ecolifeEventId: String(event.id) } },
-  };
-}
-
-function dateTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) throw new Error('This event has no valid time.');
-  return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
-}
-
-function endTime(startIso: string, endIso: string): string {
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  if (Number.isNaN(end) || end <= start) {
-    return new Date(start + 2 * 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
-  }
-  return dateTime(endIso);
-}
-
-async function readCreatedId(response: Response): Promise<string> {
-  if (!response.ok) throw new Error(await googleError(response));
-  const json = (await response.json()) as { id?: string };
-  if (!json.id) throw new Error('Google Calendar did not return an event id.');
-  return json.id;
-}
-
-async function googleError(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as {
-      error?: { message?: string; status?: string; errors?: { reason?: string }[] };
-    };
-    const reason = body.error?.errors?.[0]?.reason;
-    const message = body.error?.message ?? '';
-    if (
-      reason === 'accessNotConfigured' ||
-      message.includes('has not been used in project') ||
-      message.includes('is not been used') ||
-      message.includes('accessNotConfigured')
-    ) {
-      return 'Enable the Google Calendar API on this Google Cloud project, then try again.';
-    }
-    if (response.status === 403 && message.toLowerCase().includes('insufficient')) {
-      return 'This Google account did not grant calendar access.';
-    }
-    if (message) return message;
+    const existing = await Calendar.ExpoCalendarEvent.get(eventId);
+    await existing.delete();
   } catch {
-    // The body was not JSON.
+    // Already removed from the phone calendar.
   }
-  return `Google Calendar returned ${response.status}.`;
+}
+
+async function writableCalendar() {
+  const permission = await Calendar.requestCalendarPermissions();
+  if (permission.status !== 'granted') {
+    throw new Error('Calendar permission was not granted.');
+  }
+  const calendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
+  const writable = calendars.filter((calendar) => calendar.allowsModifications);
+  const google = writable.find((calendar) => isGoogleCalendar(calendar));
+  const chosen = google ?? writable.find((calendar) => calendar.isPrimary) ?? writable[0];
+  if (!chosen) throw new Error('This phone has no calendar EcoLife can write to.');
+  return chosen;
+}
+
+function isGoogleCalendar(calendar: Calendar.ExpoCalendar): boolean {
+  const source = calendar.source;
+  const label = [source?.name, source?.type, calendar.ownerAccount, calendar.title]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return label.includes('google');
+}
+
+function endIso(startIso: string, endIsoValue: string): string {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIsoValue).getTime();
+  if (Number.isNaN(start)) throw new Error('This event has no valid time.');
+  if (Number.isNaN(end) || end <= start) return new Date(start + 2 * 60 * 60 * 1000).toISOString();
+  return endIsoValue;
 }
