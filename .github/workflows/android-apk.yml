@@ -1,0 +1,169 @@
+name: Android APK
+
+# Every push to main produces an installable APK as a build artifact.
+#
+# Built on the GitHub runner with `expo prebuild` + Gradle rather than EAS, for
+# two reasons: this repo is public, so Actions minutes are free and unlimited,
+# whereas EAS Build's free tier is a capped number of builds per month that a
+# push-triggered workflow would exhaust and then queue behind. And the APK lands
+# in the run's artifacts instead of behind an Expo account.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A second push supersedes the first: nobody wants the APK for a commit that is
+# already two behind, and an Android build holds a runner for ~20 minutes.
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # Matches the pnpm that wrote pnpm-lock.yaml (lockfileVersion 9.0).
+          version: 12.5.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Caches ~/.gradle and reads the wrapper, which prebuild generates below.
+      - uses: gradle/actions/setup-gradle@v4
+
+      # --frozen-lockfile on purpose: it fails loudly when package.json and
+      # pnpm-lock.yaml have drifted, rather than quietly resolving a different
+      # tree than anyone has locally. `nodeLinker: hoisted` comes from
+      # pnpm-workspace.yaml, which React Native's Metro resolver requires.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `google-services.json` is gitignored — correct for a public repo, since
+      # it carries the Firebase client config. app.config.ts references it via
+      # android.googleServicesFile, so the Expo plugin fails the prebuild when
+      # it is absent.
+      #
+      # With the secret set, the real file is used and the APK can receive push.
+      # Without it, a structurally valid placeholder keeps the build green; the
+      # APK is identical except that FCM will not register. PRD-v2 §1.5 defers
+      # push for v2.0 anyway ("the subscription table ships; the sender does
+      # not"), so that is not yet a loss worth failing a build over.
+      - name: Provide google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -f google-services.json ]; then
+            echo "::notice::google-services.json is present in the checkout; using it."
+          elif [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > google-services.json
+            echo "::notice::Wrote google-services.json from the GOOGLE_SERVICES_JSON_BASE64 secret."
+          else
+            echo "::warning::No GOOGLE_SERVICES_JSON_BASE64 secret — writing a placeholder. The APK will build but push notifications will not work. Add the secret to get a push-capable build."
+            cat > google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ecolife-ci-placeholder",
+              "storage_bucket": "ecolife-ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "app.ecolife.mobile" }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "CI_PLACEHOLDER_NOT_A_REAL_KEY" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+          fi
+
+      # Baked into the JS bundle at build time, so it has to be right here and
+      # cannot be changed after the fact. Set the EXPO_PUBLIC_API_URL repository
+      # variable to point builds somewhere else.
+      - name: Generate the native Android project
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ecolife-core-mpx1fg-d137cf-86-107-77-229.sslip.io/api/v1' }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+        run: |
+          echo "API base: $EXPO_PUBLIC_API_URL"
+          # --no-install: pnpm already installed, and prebuild would otherwise
+          # shell out to npm and flatten the hoisted layout Metro needs.
+          pnpm exec expo prebuild --platform android --no-install
+
+      # Release rather than debug: release bundles the JS into the APK, so the
+      # artifact runs standalone. A debug APK expects a Metro server on the
+      # machine that built it, which is useless as a downloadable.
+      #
+      # Signing: with the two keystore secrets set, the APK is signed with your
+      # upload key and is Play-uploadable. Without them, Expo's template signs
+      # release with the generated debug key — installable for testing, not
+      # distributable.
+      - name: Build the APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/upload.keystore
+            echo "::notice::Signing with the upload keystore from secrets."
+            ./gradlew assembleRelease --no-daemon --stacktrace \
+              -Pandroid.injected.signing.store.file="$PWD/app/upload.keystore" \
+              -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+              -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret — the APK is debug-signed. Fine for installing and testing, not for the Play Store."
+            ./gradlew assembleRelease --no-daemon --stacktrace
+          fi
+
+      - name: Name the APK after the commit
+        id: apk
+        run: |
+          src=$(find android/app/build/outputs/apk/release -name '*.apk' 2>/dev/null | head -1 || true)
+          if [ -z "$src" ]; then
+            echo "::error::Gradle reported success but produced no APK."
+            find android/app/build/outputs -type f | head -40
+            exit 1
+          fi
+          out="ecolife-${GITHUB_REF_NAME}-${GITHUB_SHA::7}.apk"
+          mv "$src" "$out"
+          echo "name=$out" >> "$GITHUB_OUTPUT"
+          ls -lh "$out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.name }}
+          # Long enough to be useful, short enough not to hoard storage.
+          retention-days: 30
+          if-no-files-found: error
+
+      # Keep the keystore out of the cache and off any later step.
+      - name: Remove the keystore
+        if: always()
+        run: rm -f android/app/upload.keystore
