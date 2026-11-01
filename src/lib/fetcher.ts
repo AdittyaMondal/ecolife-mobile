@@ -33,6 +33,7 @@ export class ApiError extends Error {
 function skipRefresh(path: string): boolean {
   return (
     path.startsWith('/auth/login') ||
+    path.startsWith('/auth/google') ||
     path.startsWith('/auth/register') ||
     path.startsWith('/auth/refresh') ||
     path.startsWith('/auth/forgot-password') ||
