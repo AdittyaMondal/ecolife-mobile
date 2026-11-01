@@ -11,15 +11,16 @@ import { useEventDetail, usePass } from '@/hooks/resources';
 import { errorMessage } from '@/lib/errors';
 import { api } from '@/lib/fetcher';
 import { formatWhen } from '@/lib/format';
+import { addEventToGoogleCalendar, removeEventFromGoogleCalendar } from '@/lib/google-calendar';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function EventDetail() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { event, loading, error } = useEventDetail(slug ?? '');
-  const { user, updateLocal } = useAuth();
+  const { user, local, updateLocal } = useAuth();
   const client = useQueryClient();
-  const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState<null | 'join' | 'calendar' | 'cancel'>(null);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const pass = usePass(
     event && !event.sample && event.viewer.registered ? event.id : 0,
     Boolean(event && !event.sample && event.viewer.registered),
@@ -42,9 +43,41 @@ export default function EventDetail() {
     );
   }
 
+  async function rememberOnCalendar(current: NonNullable<typeof event>) {
+    const existing = local.calendarEvents?.[String(current.id)];
+    if (existing) {
+      return { text: 'This event is already on your Google Calendar.', ok: true };
+    }
+    const savedOnDevice = current.sample || current.id < 0;
+    try {
+      const googleEventId = await addEventToGoogleCalendar(current);
+      await updateLocal((state) => ({
+        ...state,
+        calendarEvents: {
+          ...(state.calendarEvents ?? {}),
+          [String(current.id)]: googleEventId,
+        },
+      }));
+      return {
+        text: savedOnDevice
+          ? 'Saved on this phone, and added to your Google Calendar. This is not a venue pass.'
+          : 'You’re registered, and the event is on your Google Calendar.',
+        ok: true,
+      };
+    } catch (err) {
+      const reason = errorMessage(err);
+      return {
+        text: savedOnDevice
+          ? `Saved on this phone. Google Calendar was not updated: ${reason}`
+          : `You’re registered. Google Calendar was not updated: ${reason}`,
+        ok: false,
+      };
+    }
+  }
+
   async function register() {
     if (!event) return;
-    setPending(true);
+    setPending('join');
     setMessage(null);
     try {
       if (event.sample || event.id < 0) {
@@ -54,59 +87,106 @@ export default function EventDetail() {
             ? state.eventRegistrations
             : [...state.eventRegistrations, event.id],
         }));
-        setMessage('Saved on this phone. This is not a venue pass.');
-        return;
+      } else {
+        await api.post(`/events/${event.id}/register`);
+        await client.invalidateQueries();
       }
-      await api.post(`/events/${event.id}/register`);
-      await client.invalidateQueries();
-      setMessage('You’re registered. Your pass is below.');
+      const calendar = await rememberOnCalendar(event);
+      setMessage(calendar);
     } catch (err) {
-      setMessage(errorMessage(err));
+      setMessage({ text: errorMessage(err), ok: false });
     } finally {
-      setPending(false);
+      setPending(null);
+    }
+  }
+
+  async function addCalendar() {
+    if (!event) return;
+    setPending('calendar');
+    setMessage(null);
+    try {
+      setMessage(await rememberOnCalendar(event));
+    } catch (err) {
+      setMessage({ text: errorMessage(err), ok: false });
+    } finally {
+      setPending(null);
     }
   }
 
   async function cancel() {
     if (!event) return;
     const current = event;
-    if (current.sample || current.id < 0) {
-      await updateLocal((state) => ({
-        ...state,
-        eventRegistrations: state.eventRegistrations.filter((id) => id !== current.id),
-      }));
-      return;
-    }
-    setPending(true);
+    setPending('cancel');
+    setMessage(null);
     try {
-      await api.delete(`/events/${current.id}/register`);
-      await client.invalidateQueries();
-      setMessage('Registration cancelled.');
+      if (!(current.sample || current.id < 0)) {
+        await api.delete(`/events/${current.id}/register`);
+        await client.invalidateQueries();
+      } else {
+        await updateLocal((state) => ({
+          ...state,
+          eventRegistrations: state.eventRegistrations.filter((id) => id !== current.id),
+        }));
+      }
+      const googleEventId = local.calendarEvents?.[String(current.id)];
+      if (googleEventId) {
+        try {
+          await removeEventFromGoogleCalendar(googleEventId);
+          await updateLocal((state) => {
+            const calendarEvents = { ...(state.calendarEvents ?? {}) };
+            delete calendarEvents[String(current.id)];
+            return { ...state, calendarEvents };
+          });
+          setMessage({
+            text: 'Registration cancelled, and the event was removed from Google Calendar.',
+            ok: true,
+          });
+        } catch (err) {
+          setMessage({
+            text: `Registration cancelled. Google Calendar still has the event: ${errorMessage(err)}`,
+            ok: false,
+          });
+        }
+      } else {
+        setMessage({ text: 'Registration cancelled.', ok: true });
+      }
     } catch (err) {
-      setMessage(errorMessage(err));
+      setMessage({ text: errorMessage(err), ok: false });
     } finally {
-      setPending(false);
+      setPending(null);
     }
   }
 
   const registered = event.viewer.registered;
+  const onCalendar = Boolean(local.calendarEvents?.[String(event.id)]);
 
   return (
     <Screen
       footer={
         registered ? (
-          <Button
-            label="Cancel registration"
-            variant="outline"
-            onPress={() => void cancel()}
-            loading={pending}
-          />
+          <View className="gap-3">
+            {onCalendar ? null : (
+              <Button
+                label="Add to Google Calendar"
+                onPress={() => void addCalendar()}
+                loading={pending === 'calendar'}
+                disabled={pending !== null}
+              />
+            )}
+            <Button
+              label="Cancel registration"
+              variant="outline"
+              onPress={() => void cancel()}
+              loading={pending === 'cancel'}
+              disabled={pending !== null}
+            />
+          </View>
         ) : (
           <Button
             label="Register"
             variant="forest"
             onPress={() => void register()}
-            loading={pending}
+            loading={pending === 'join'}
           />
         )
       }
@@ -156,8 +236,11 @@ export default function EventDetail() {
         </View>
       ) : null}
       {message ? (
-        <T weight="semibold" className="mt-4 text-sm text-forest">
-          {message}
+        <T
+          weight="semibold"
+          className={`mt-4 text-sm ${message.ok ? 'text-forest' : 'text-destructive'}`}
+        >
+          {message.text}
         </T>
       ) : null}
     </Screen>

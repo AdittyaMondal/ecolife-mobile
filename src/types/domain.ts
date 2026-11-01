@@ -426,6 +426,8 @@ export type LocalUserState = {
   redemptions: DeviceOrder[];
   spentCoins: number;
   eventRegistrations: number[];
+  /** EcoLife event id → Google Calendar event id, so cancel can remove the same entry. */
+  calendarEvents: Record<string, string>;
   orgAnswers: Record<string, Record<string, string>>;
   dismissedTips: string[];
   acceptedTips: string[];

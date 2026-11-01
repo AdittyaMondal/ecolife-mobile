@@ -45,6 +45,15 @@ const config: ExpoConfig = {
       },
     ],
     [
+      '@react-native-google-signin/google-signin',
+      {
+        // Plugin requires an iOS URL scheme. Reversed from the Android OAuth client
+        // 789459681263-sovuuv1llrmccfijf2otrmorsdea2q3c. Play Services matches that
+        // client by package name and signing certificate, not by this scheme.
+        iosUrlScheme: 'com.googleusercontent.apps.789459681263-sovuuv1llrmccfijf2otrmorsdea2q3c',
+      },
+    ],
+    [
       'expo-location',
       {
         locationWhenInUsePermission:
