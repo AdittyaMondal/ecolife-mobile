@@ -29,12 +29,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      # Scoped to this job rather than the workflow, so the write scope is
-      # visible next to the step that needs it.
-      contents: write
+      # Read-only, deliberately. This job runs ~739 npm packages, Gradle and
+      # its plugins, and `expo prebuild` — a lot of third-party code. A
+      # write-scoped GITHUB_TOKEN sitting in that environment is a supply-chain
+      # foothold: anything in the dependency tree could push to the repo or
+      # rewrite a release. Publishing happens in a separate job below, which
+      # runs no repository code at all.
+      contents: read
+    outputs:
+      apk: ${{ steps.apk.outputs.name }}
+      signed: ${{ steps.build.outputs.signed }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Keeps the token out of .git/config for the rest of the job.
+          persist-credentials: false
 
       # Pinned to a full commit SHA, not a tag: `@v4` is mutable, and this job
       # has the signing keystore and the Firebase config in its environment.
@@ -168,6 +178,7 @@ jobs:
       # release with the generated debug key — installable for testing, not
       # distributable.
       - name: Build the APK
+        id: build
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -175,6 +186,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
+          # Recorded as an output so the Release can state its signing status
+          # rather than leaving someone to guess from the filename.
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/upload.keystore
             echo "::notice::Signing with the upload keystore from secrets."
@@ -210,6 +228,31 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      # Keep the keystore out of the cache and off any later step.
+      - name: Remove the keystore
+        if: always()
+        run: rm -f android/app/upload.keystore
+
+  # Separate job on purpose, and the ONLY one with a write-scoped token.
+  #
+  # It checks out nothing and runs nothing from the repository: it downloads
+  # the APK the build produced and calls `gh`. So the token that can write to
+  # Releases never coexists with the dependency tree that builds the app.
+  publish:
+    name: Publish to Releases
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      # No actions/checkout. Nothing here needs the source, and not having it
+      # is the point.
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.apk.outputs.apk }}
+
       # An artifact lives under its run, needs a GitHub login to download and
       # expires in 30 days. A Release is a public, permanent, linkable page —
       # which is where someone actually looks for "the app".
@@ -225,7 +268,8 @@ jobs:
       - name: Publish the APK to Releases
         env:
           GH_TOKEN: ${{ github.token }}
-          APK: ${{ steps.apk.outputs.name }}
+          APK: ${{ needs.apk.outputs.apk }}
+          SIGNED: ${{ needs.apk.outputs.signed }}
         run: |
           TAG=nightly
 
@@ -234,6 +278,8 @@ jobs:
           case "$TAG" in
             v*|V*|[0-9]*) echo "::error::Refusing to recreate release tag '$TAG' — it looks like a version."; exit 1 ;;
           esac
+
+          test -f "$APK" || { echo "::error::$APK missing from the downloaded artifact."; ls -la; exit 1; }
 
           # Written to a FILE, not captured with NOTES=$(cat <<EOF ...).
           # A heredoc inside $( ) still honours quotes while bash scans for the
@@ -252,13 +298,33 @@ jobs:
 
           Install on a device with "unknown sources" allowed.
 
-          **This is a test build, not a store release.** Unless the signing
-          secrets are configured it is signed with Expo's debug key, so it
-          cannot be uploaded to Play and will not upgrade over a Play install —
-          uninstall any previous copy first. Push notifications only work when
-          the \`GOOGLE_SERVICES_JSON_BASE64\` secret is set; otherwise the build
-          carries a placeholder Firebase config.
+          **This is a test build, not a store release.** Push notifications only
+          work when the \`GOOGLE_SERVICES_JSON_BASE64\` secret is set; otherwise
+          the build carries a placeholder Firebase config.
           EOF
+
+          if [ "$SIGNED" = "true" ]; then
+            cat >> release-notes.md <<'EOF'
+
+          Signed with the configured upload keystore.
+          EOF
+          else
+            # Worth stating outright on a PUBLIC page. Expo's debug keystore
+            # ships with the template, so this APK's signature is not evidence
+            # of origin: anyone can produce a build Android will accept as an
+            # update to this one. Fine for a throwaway test build you installed
+            # deliberately; not something to hand to users. Setting
+            # ANDROID_KEYSTORE_BASE64 makes these builds properly signed.
+            cat >> release-notes.md <<'EOF'
+
+          > **Debug-signed — do not distribute.** No upload keystore is
+          > configured, so this is signed with Expo's template debug key, which
+          > is public. The signature proves nothing about who built it, and
+          > anyone can sign an APK that Android will accept as an update to this
+          > one. It also cannot be uploaded to Play and will not upgrade over a
+          > Play install — uninstall any previous copy first.
+          EOF
+          fi
 
           # Delete and recreate rather than just re-uploading the asset: the
           # tag has to MOVE to this commit, or the page keeps claiming to be a
@@ -269,13 +335,8 @@ jobs:
 
           gh release create "$TAG" "$APK" \
             --target "$GITHUB_SHA" \
-            --title "Nightly — ${GITHUB_SHA:0:7}" \
+            --title "Nightly — ${GITHUB_SHA:0:7}$([ "$SIGNED" = "true" ] || echo ' (debug-signed)')" \
             --notes-file release-notes.md \
             --prerelease
 
           echo "::notice::Published $APK to ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG"
-
-      # Keep the keystore out of the cache and off any later step.
-      - name: Remove the keystore
-        if: always()
-        run: rm -f android/app/upload.keystore
