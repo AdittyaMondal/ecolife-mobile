@@ -232,7 +232,11 @@ export default function EventDetail() {
             Your pass
           </T>
           <T className="mb-3 text-sm text-muted-foreground">{pass.data.status}</T>
-          <QRCode value={pass.data.qrPayload || pass.data.passCode} size={180} />
+          {pass.data.qrPayload || pass.data.passCode ? (
+            <QRCode value={pass.data.qrPayload || pass.data.passCode} size={180} />
+          ) : (
+            <Note>The pass code is not on this phone yet.</Note>
+          )}
         </View>
       ) : null}
       {message ? (

@@ -25,12 +25,12 @@ export type CalendarEventInput = {
 let signInModule: GoogleSignInModule | null = null;
 let configured = false;
 
-function googleSignIn(): GoogleSignInModule {
+async function googleSignIn(): Promise<GoogleSignInModule> {
   if (signInModule) return signInModule;
   try {
-    // Required inside the function so Expo Go can open the app. The module is only
-    // present in the EcoLife APK, and a top-level import crashes Expo Go on load.
-    signInModule = require('@react-native-google-signin/google-signin') as GoogleSignInModule;
+    // import() stays unloaded until a calendar write. A literal require() is hoisted
+    // by Metro and crashes Expo Go as soon as this file loads.
+    signInModule = await import('@react-native-google-signin/google-signin');
     return signInModule;
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
@@ -60,7 +60,7 @@ export async function addEventToGoogleCalendar(event: CalendarEventInput): Promi
     body: JSON.stringify(eventBody(event)),
   });
   if (response.status === 401) {
-    const { GoogleSignin } = googleSignIn();
+    const { GoogleSignin } = await googleSignIn();
     await GoogleSignin.clearCachedAccessToken(token);
     const retry = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
       method: 'POST',
@@ -84,7 +84,7 @@ export async function removeEventFromGoogleCalendar(googleEventId: string): Prom
   });
   if (response.status === 204 || response.status === 404 || response.status === 410) return;
   if (response.status === 401) {
-    const { GoogleSignin } = googleSignIn();
+    const { GoogleSignin } = await googleSignIn();
     await GoogleSignin.clearCachedAccessToken(token);
     const retry = await fetch(url, {
       method: 'DELETE',
@@ -97,7 +97,7 @@ export async function removeEventFromGoogleCalendar(googleEventId: string): Prom
 }
 
 async function calendarAccessToken(): Promise<string> {
-  const mod = googleSignIn();
+  const mod = await googleSignIn();
   const { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } =
     mod;
   try {
