@@ -30,7 +30,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      # Pinned to a full commit SHA, not a tag: `@v4` is mutable, and this job
+      # has the signing keystore and the Firebase config in its environment.
+      # Bump deliberately (v6 is current upstream); Dependabot can do it.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           # Matches the pnpm that wrote pnpm-lock.yaml (lockfileVersion 9.0).
           version: 12.5.1
@@ -44,9 +47,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-
-      # Caches ~/.gradle and reads the wrapper, which prebuild generates below.
-      - uses: gradle/actions/setup-gradle@v4
+          # Caches ~/.gradle/caches and ~/.gradle/wrapper. This replaces
+          # gradle/actions/setup-gradle, which was here only for caching — one
+          # fewer third-party action with access to this job's secrets.
+          cache: gradle
 
       # --frozen-lockfile on purpose: it fails loudly when package.json and
       # pnpm-lock.yaml have drifted, rather than quietly resolving a different
