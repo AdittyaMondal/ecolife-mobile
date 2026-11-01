@@ -1,5 +1,12 @@
 import type { HistoryPoint, RankRow } from '@/types/domain';
 
+export function pageInfo(data: unknown): { nextCursor: string | null; hasMore: boolean } {
+  if (!data || typeof data !== 'object') return { nextCursor: null, hasMore: false };
+  const info = (data as { pageInfo?: { nextCursor?: string | null; hasMore?: boolean } }).pageInfo;
+  const nextCursor = typeof info?.nextCursor === 'string' ? info.nextCursor : null;
+  return { nextCursor, hasMore: Boolean(info?.hasMore && nextCursor) };
+}
+
 export function unwrapList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (!data || typeof data !== 'object') return [];

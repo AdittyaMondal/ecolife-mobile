@@ -1,9 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Screen, TopBar } from '@/components/ui/header';
-import { Grow } from '@/components/ui/motion';
-import { Button, ChoiceTile, Note, SliderField, SoftCard } from '@/components/ui/primitives';
+import { Button, ChoiceTile, Note, SoftCard } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
 import {
   AC_OPTIONS,
@@ -14,9 +13,11 @@ import {
   WASTE_OPTIONS,
 } from '@/data/content';
 import { useTrackModel } from '@/hooks/resources';
+import { useMeasuredCommute } from '@/hooks/use-commute';
 import { estimateDaily } from '@/lib/carbon';
 import { errorMessage } from '@/lib/errors';
 import { categoryShare, formatKg, formatShortDate, signedKg, weekdayLabel } from '@/lib/format';
+import { useAuth } from '@/providers/auth-provider';
 import type { DailyAnswers, TripMode } from '@/types/domain';
 
 type StepId = 'mode' | 'distance' | 'food' | 'home' | 'waste' | 'org';
@@ -97,9 +98,9 @@ function Summary({
         <View className="h-36 flex-row items-end justify-between gap-1">
           {model.history.slice(-7).map((point) => (
             <View key={point.date} className="flex-1 items-center">
-              <Grow
+              <View
                 className={`w-full rounded-t-xl ${point.logged ? 'bg-primary' : 'bg-muted'}`}
-                height={Math.max(8, (point.totalKg / max) * 110)}
+                style={{ height: Math.max(8, (point.totalKg / max) * 110) }}
               />
               <T className="mt-1 text-[10px] text-muted-foreground">
                 {weekdayLabel(point.date).slice(0, 1)}
@@ -134,9 +135,11 @@ function Wizard({
     'waste',
     ...(model.orgQuestions.length ? (['org'] as const) : []),
   ];
+  const { local } = useAuth();
   const [index, setIndex] = useState(0);
-  const [mode, setMode] = useState<TripMode>('metro_train');
-  const [km, setKm] = useState(12);
+  const [mode, setMode] = useState<TripMode>(local.answers.primaryCommuteMode ?? 'metro_train');
+  const [km, setKm] = useState(0);
+  const measured = useMeasuredCommute(mode);
   const [food, setFood] = useState('vegetarian');
   const [ac, setAc] = useState<'0' | '1_3' | '4_8' | '8_plus'>('1_3');
   const [bath, setBath] = useState<'bucket' | 'short_shower' | 'long_shower'>('short_shower');
@@ -144,7 +147,6 @@ function Wizard({
   const [org, setOrg] = useState<Record<string, string>>(model.savedOrg);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const advancing = useRef(false);
   const [done, setDone] = useState<{
     source: 'api' | 'device';
     credited: 'api' | 'device';
@@ -152,6 +154,15 @@ function Wizard({
     delta: number;
     points: number;
   } | null>(null);
+  const advancing = useRef(false);
+
+  useEffect(() => {
+    if (mode === 'work_from_home') {
+      setKm(0);
+      return;
+    }
+    setKm(measured ?? 0);
+  }, [measured, mode]);
 
   function pickAndAdvance(apply: () => void) {
     apply();
@@ -255,11 +266,7 @@ function Wizard({
           />
         ))}
       </View>
-      <Animated.View
-        key={step}
-        entering={FadeInRight.duration(240)}
-        exiting={FadeOutLeft.duration(160)}
-      >
+      <Animated.View key={step} entering={FadeInRight.duration(220)}>
         {step === 'mode' ? (
           <>
             <Prompt title="How did you travel today?" subtitle="Your main mode." />
@@ -280,8 +287,12 @@ function Wizard({
         {step === 'distance' ? (
           <>
             <Prompt
-              title={mode === 'work_from_home' ? 'No commute today' : 'How far was it?'}
-              subtitle="Total kilometres for that mode."
+              title={mode === 'work_from_home' ? 'No commute today' : 'Today’s commute'}
+              subtitle={
+                mode === 'work_from_home'
+                  ? 'Home days stay at zero.'
+                  : 'Taken from this phone’s locations. Nothing to enter.'
+              }
             />
             {mode === 'work_from_home' ? (
               <View className="mt-4">
@@ -291,11 +302,15 @@ function Wizard({
               <View className="mt-6">
                 <View className="mb-2 flex-row items-end justify-between">
                   <T weight="extrabold" className="text-4xl text-ink">
-                    {km}
+                    {measured == null ? '—' : km}
                   </T>
                   <T className="text-muted-foreground">km</T>
                 </View>
-                <SliderField value={km} min={1} max={80} onChange={setKm} />
+                <Note>
+                  {measured == null
+                    ? 'No commute on this phone yet. EcoLife needs locations from home and from work or college today.'
+                    : 'One-way distance between where this phone was this morning and where it spent the workday.'}
+                </Note>
               </View>
             )}
           </>

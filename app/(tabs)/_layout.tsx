@@ -4,11 +4,7 @@ import { Dock } from '@/components/ui/dock';
 export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        animation: 'shift',
-        transitionSpec: { animation: 'timing', config: { duration: 260 } },
-      }}
+      screenOptions={{ headerShown: false }}
       tabBar={(props) => <Dock state={props.state} navigateToTab={props.navigateToTab} />}
     >
       <Tabs.Screen name="index" options={{ title: 'Home' }} />

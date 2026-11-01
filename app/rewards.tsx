@@ -1,5 +1,4 @@
 import { View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen, TopBar } from '@/components/ui/header';
 import { EmptyBlock, LoadingBlock } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
@@ -45,12 +44,8 @@ export default function Rewards() {
         />
       ) : null}
       <View className="gap-2">
-        {items.map((item, index) => (
-          <Animated.View
-            key={item.id}
-            entering={FadeInDown.duration(300).delay(Math.min(index, 8) * 35)}
-            className="rounded-[20px] bg-card px-4 py-3"
-          >
+        {items.map((item) => (
+          <View key={item.id} className="rounded-[20px] bg-card px-4 py-3">
             <View className="flex-row justify-between">
               <T weight="bold" className="text-ink">
                 {item.note || item.source}
@@ -64,7 +59,7 @@ export default function Rewards() {
               {item.coinsDelta ? `${item.coinsDelta} coins · ` : ''}
               {formatWhen(item.createdAt, user?.timezone)}
             </T>
-          </Animated.View>
+          </View>
         ))}
       </View>
     </Screen>

@@ -2,9 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { type Href, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Screen } from '@/components/ui/header';
-import { FillBar } from '@/components/ui/motion';
 import { Button, ChoiceTile, Field, Note, Stepper } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
 import { REGIONS } from '@/data/content';
@@ -493,19 +492,16 @@ export default function Onboarding() {
         </View>
       }
     >
-      <FillBar
-        percent={Math.max(8, progress * 100)}
-        trackClassName="mb-5 h-3 bg-muted"
-        fillClassName="bg-primary"
-      />
+      <View className="mb-5 h-3 overflow-hidden rounded-full bg-muted">
+        <View
+          className="h-3 rounded-full bg-primary"
+          style={{ width: `${Math.max(8, progress * 100)}%` }}
+        />
+      </View>
       <T weight="bold" className="text-sm text-forest">
         {index + 1} of {questions.length}
       </T>
-      <Animated.View
-        key={question.id}
-        entering={FadeInRight.duration(240)}
-        exiting={FadeOutLeft.duration(160)}
-      >
+      <Animated.View key={question.id} entering={FadeInRight.duration(240)}>
         <T weight="extrabold" className="mt-2 text-3xl leading-9 text-ink">
           {question.title}
         </T>
@@ -566,7 +562,7 @@ function QuestionBody({
         <Stepper
           value={value}
           min={1}
-          max={80}
+          max={200}
           suffix="km one way"
           onChange={(next) => onChange({ ...answers, commuteDistanceKm: next })}
         />

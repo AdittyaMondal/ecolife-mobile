@@ -1,5 +1,4 @@
 import { View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen, TopBar } from '@/components/ui/header';
 import { Button, EmptyBlock, LoadingBlock } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
@@ -25,10 +24,9 @@ export default function Notifications() {
         />
       ) : null}
       <View className="gap-3">
-        {items.map((item, index) => (
-          <Animated.View
+        {items.map((item) => (
+          <View
             key={item.id}
-            entering={FadeInDown.duration(320).delay(Math.min(index, 8) * 40)}
             className={`rounded-[22px] p-4 ${item.readAt ? 'bg-card' : 'bg-accent'}`}
           >
             <T weight="bold" className="text-ink">
@@ -47,7 +45,7 @@ export default function Notifications() {
                 />
               </View>
             ) : null}
-          </Animated.View>
+          </View>
         ))}
       </View>
     </Screen>

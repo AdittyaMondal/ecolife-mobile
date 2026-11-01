@@ -1,9 +1,7 @@
 import { type Href, router } from 'expo-router';
-import { View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Pressable, View } from 'react-native';
 import { Avatar } from '@/components/ui/avatar';
 import { Screen, TopBar } from '@/components/ui/header';
-import { PressableScale } from '@/components/ui/motion';
 import { Button } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
 import { formatCount } from '@/lib/format';
@@ -25,17 +23,14 @@ export default function Profile() {
   return (
     <Screen>
       <TopBar title="Profile" back />
-      <Animated.View
-        entering={FadeInDown.duration(320)}
-        className="items-center rounded-[32px] bg-secondary px-5 py-8"
-      >
+      <View className="items-center rounded-[32px] bg-secondary px-5 py-8">
         <Avatar name={user.name} uri={user.avatarUrl} size={96} />
         <T weight="extrabold" className="mt-4 text-3xl text-cream">
           {user.name}
         </T>
         <T className="text-eco-100">{user.email}</T>
         {user.city ? <T className="text-eco-100">{user.city}</T> : null}
-      </Animated.View>
+      </View>
       <View className="mt-4 flex-row gap-3">
         <Stat label="Points" value={formatCount(shownPoints(user.wallet.pointsTotal, local))} />
         <Stat label="Coins" value={formatCount(coins)} />
@@ -57,17 +52,16 @@ export default function Profile() {
         </T>
       </View>
       <View className="mt-4 gap-2">
-        {LINKS.map((link, index) => (
-          <Animated.View key={link.href} entering={FadeInDown.duration(300).delay(index * 40)}>
-            <PressableScale
-              onPress={() => router.push(link.href as Href)}
-              className="rounded-[20px] bg-card px-4 py-4"
-            >
-              <T weight="bold" className="text-ink">
-                {link.label}
-              </T>
-            </PressableScale>
-          </Animated.View>
+        {LINKS.map((link) => (
+          <Pressable
+            key={link.href}
+            onPress={() => router.push(link.href as Href)}
+            className="rounded-[20px] bg-card px-4 py-4"
+          >
+            <T weight="bold" className="text-ink">
+              {link.label}
+            </T>
+          </Pressable>
         ))}
       </View>
       <View className="mt-5">

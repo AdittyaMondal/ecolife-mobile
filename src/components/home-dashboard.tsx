@@ -9,11 +9,10 @@ import {
   Trophy,
   X,
 } from 'lucide-react-native';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useMenu } from '@/components/menu-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { BellButton, IconButton, Screen } from '@/components/ui/header';
-import { FillBar, Grow, PressableScale, Rise } from '@/components/ui/motion';
 import { Note } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
 import { CATEGORY_META } from '@/data/content';
@@ -60,7 +59,7 @@ export default function HomeDashboard() {
             {firstName(model.name)}
           </T>
         </View>
-        <PressableScale
+        <Pressable
           accessibilityRole="button"
           onPress={() => router.push('/rewards' as Href)}
           className="rounded-full bg-accent px-3 py-2"
@@ -68,22 +67,22 @@ export default function HomeDashboard() {
           <T weight="bold" className="text-sm text-forest">
             {loading && model.points === 0 ? '…' : `${formatCount(model.points)} pts`}
           </T>
-        </PressableScale>
+        </Pressable>
         <BellButton
           count={user?.unreadNotifications ?? 0}
           onPress={() => router.push('/notifications' as Href)}
         />
         {user ? (
-          <PressableScale onPress={() => router.push('/profile' as Href)}>
+          <Pressable onPress={() => router.push('/profile' as Href)}>
             <Avatar name={user.name} uri={user.avatarUrl} />
-          </PressableScale>
+          </Pressable>
         ) : null}
       </View>
 
       {user && !user.emailVerified ? (
-        <PressableScale onPress={() => router.push('/settings' as Href)} className="mb-4">
+        <Pressable onPress={() => router.push('/settings' as Href)} className="mb-4">
           <Note>Verify your email to earn points and coins. Tap to resend from Settings.</Note>
-        </PressableScale>
+        </Pressable>
       ) : null}
       {isEmployee ? (
         <View className="mb-4">
@@ -93,124 +92,123 @@ export default function HomeDashboard() {
         </View>
       ) : null}
 
-      <Rise>
-        <View className="rounded-[32px] bg-eco-900 p-5">
-          <View className="flex-row items-center justify-between">
-            <T weight="semibold" className="text-xs uppercase tracking-[2px] text-eco-100">
-              Today’s impact
+      <View className="rounded-[32px] bg-eco-900 p-5">
+        <View className="flex-row items-center justify-between">
+          <T weight="semibold" className="text-xs uppercase tracking-[2px] text-eco-100">
+            Today’s impact
+          </T>
+          <View className="rounded-full bg-cream/10 px-3 py-1">
+            <T weight="semibold" className="text-xs text-cream">
+              {model.logged ? 'Complete' : 'Not logged'}
             </T>
-            <View className="rounded-full bg-cream/10 px-3 py-1">
-              <T weight="semibold" className="text-xs text-cream">
-                {model.logged ? 'Complete' : 'Not logged'}
-              </T>
-            </View>
           </View>
+        </View>
 
-          {loading && !model.logged ? (
-            <View className="h-48 items-center justify-center">
-              <ActivityIndicator color={colors.lime} />
-              <T className="mt-3 text-sm text-eco-100">Building your impact view</T>
-            </View>
-          ) : (
-            <>
-              <View className="mt-6 flex-row items-start justify-between gap-4">
-                <View className="flex-1">
-                  <View className="flex-row items-end">
-                    <Figure size={64} color={colors.cream} face="serif">
-                      {model.logged ? formatKg(model.totalKg) : '—'}
-                    </Figure>
-                    <T weight="semibold" className="mb-2 ml-2 text-sm text-eco-100">
-                      kg CO₂e
-                    </T>
-                  </View>
-                  <T className="mt-2 text-sm leading-5 text-eco-100">
-                    {model.logged
-                      ? model.deltaKg <= 0
-                        ? `${signedKg(model.deltaKg)} below your usual day`
-                        : `${signedKg(model.deltaKg)} above your usual day`
-                      : 'Your daily story starts with a check-in'}
+        {loading && !model.logged ? (
+          <View className="h-48 items-center justify-center">
+            <ActivityIndicator color={colors.lime} />
+            <T className="mt-3 text-sm text-eco-100">Building your impact view</T>
+          </View>
+        ) : (
+          <>
+            <View className="mt-6 flex-row items-start justify-between gap-4">
+              <View className="flex-1">
+                <View className="flex-row items-end">
+                  <Figure size={64} color={colors.cream} face="serif">
+                    {model.logged ? formatKg(model.totalKg) : '—'}
+                  </Figure>
+                  <T weight="semibold" className="mb-2 ml-2 text-sm text-eco-100">
+                    kg CO₂e
                   </T>
                 </View>
-                <View className="items-end pt-1">
-                  <Figure size={32} color={colors.lime}>
-                    {String(model.streak)}
-                  </Figure>
-                  <T
-                    weight="semibold"
-                    className="mt-1 text-right text-[11px] uppercase tracking-widest text-eco-100"
-                  >
-                    day streak
-                  </T>
-                </View>
-              </View>
-
-              <View className="mt-6">
-                <View className="mb-2 flex-row items-center justify-between">
-                  <T className="text-xs text-eco-100">Daily baseline</T>
-                  <Figure size={13} color={colors.cream}>
-                    {model.logged && model.baselineKg ? `${Math.round(model.percent)}%` : '—'}
-                  </Figure>
-                </View>
-                <FillBar
-                  percent={model.logged ? Math.max(3, baselineProgress) : 0}
-                  trackClassName="h-2 bg-cream/15"
-                  fillClassName="bg-primary"
-                />
-              </View>
-
-              <View className="mt-5 flex-row items-end gap-2">
-                {impacts.map((item) => (
-                  <View key={item.key} className="flex-1">
-                    <View className="h-12 justify-end">
-                      <Grow
-                        height={Math.round((48 * Math.max(8, Math.min(100, item.share))) / 100)}
-                        className="w-full rounded-t-md bg-cream/80"
-                      />
-                    </View>
-                    <T className="mt-1 text-center text-[8px] uppercase text-eco-100">
-                      {item.label.slice(0, 3)}
-                    </T>
-                  </View>
-                ))}
-                <T className="ml-2 max-w-[94px] text-xs leading-4 text-eco-100">
-                  Five signals shape today’s total.
+                <T className="mt-2 text-sm leading-5 text-eco-100">
+                  {model.logged
+                    ? model.deltaKg <= 0
+                      ? `${signedKg(model.deltaKg)} below your usual day`
+                      : `${signedKg(model.deltaKg)} above your usual day`
+                    : 'Your daily story starts with a check-in'}
                 </T>
               </View>
-            </>
+              <View className="items-end pt-1">
+                <Figure size={32} color={colors.lime}>
+                  {String(model.streak)}
+                </Figure>
+                <T
+                  weight="semibold"
+                  className="mt-1 text-right text-[11px] uppercase tracking-widest text-eco-100"
+                >
+                  day streak
+                </T>
+              </View>
+            </View>
+
+            <View className="mt-6">
+              <View className="mb-2 flex-row items-center justify-between">
+                <T className="text-xs text-eco-100">Daily baseline</T>
+                <Figure size={13} color={colors.cream}>
+                  {model.logged && model.baselineKg ? `${Math.round(model.percent)}%` : '—'}
+                </Figure>
+              </View>
+              <View className="h-2 overflow-hidden rounded-full bg-cream/15">
+                <View
+                  className="h-2 rounded-full bg-primary"
+                  style={{
+                    width: `${model.logged ? Math.min(100, Math.max(3, baselineProgress)) : 0}%`,
+                  }}
+                />
+              </View>
+            </View>
+
+            <View className="mt-5 flex-row items-end gap-2">
+              {impacts.map((item) => (
+                <View key={item.key} className="flex-1">
+                  <View className="h-12 justify-end">
+                    <View
+                      className="rounded-t-md bg-cream/80"
+                      style={{ height: `${Math.max(8, Math.min(100, item.share))}%` }}
+                    />
+                  </View>
+                  <T className="mt-1 text-center text-[8px] uppercase text-eco-100">
+                    {item.label.slice(0, 3)}
+                  </T>
+                </View>
+              ))}
+              <T className="ml-2 max-w-[94px] text-xs leading-4 text-eco-100">
+                Five signals shape today’s total.
+              </T>
+            </View>
+          </>
+        )}
+      </View>
+
+      <Pressable
+        onPress={() => router.push('/track' as Href)}
+        className="mt-3 flex-row items-center rounded-[24px] bg-card p-3"
+      >
+        <View
+          className={`h-12 w-12 items-center justify-center rounded-full ${model.logged ? 'bg-accent' : 'bg-primary'}`}
+        >
+          {model.logged ? (
+            <Check color={colors.forest} size={21} strokeWidth={2.5} />
+          ) : (
+            <Leaf color={colors.ink} size={21} />
           )}
         </View>
-      </Rise>
-
-      <Rise index={1}>
-        <PressableScale
-          onPress={() => router.push('/track' as Href)}
-          className="mt-3 flex-row items-center rounded-[24px] bg-card p-3"
-        >
-          <View
-            className={`h-12 w-12 items-center justify-center rounded-full ${model.logged ? 'bg-accent' : 'bg-primary'}`}
-          >
-            {model.logged ? (
-              <Check color={colors.forest} size={21} strokeWidth={2.5} />
-            ) : (
-              <Leaf color={colors.ink} size={21} />
-            )}
-          </View>
-          <View className="ml-3 flex-1">
-            <T weight="bold" className="text-base text-ink">
-              {model.logged ? 'Today is logged' : 'Complete today’s check-in'}
-            </T>
-            <T className="mt-0.5 text-xs text-muted-foreground">
-              {model.logged
-                ? 'Review answers and your category split'
-                : 'Five quick questions · about 1 minute'}
-            </T>
-          </View>
-          <ArrowRight color={colors.ink} size={19} />
-        </PressableScale>
-      </Rise>
+        <View className="ml-3 flex-1">
+          <T weight="bold" className="text-base text-ink">
+            {model.logged ? 'Today is logged' : 'Complete today’s check-in'}
+          </T>
+          <T className="mt-0.5 text-xs text-muted-foreground">
+            {model.logged
+              ? 'Review answers and your category split'
+              : 'Five quick questions · about 1 minute'}
+          </T>
+        </View>
+        <ArrowRight color={colors.ink} size={19} />
+      </Pressable>
 
       {model.logged && dominant ? (
-        <Rise index={2}>
+        <>
           <View className="mb-3 mt-7 flex-row items-end justify-between">
             <View>
               <T className="text-xs uppercase tracking-widest text-muted-foreground">Impact map</T>
@@ -261,118 +259,112 @@ export default function HomeDashboard() {
               />
             ))}
           </View>
-        </Rise>
+        </>
       ) : null}
 
       {!hidden ? (
-        <Rise index={3}>
-          <View className="mt-7 overflow-hidden rounded-[28px] bg-card p-5">
-            <View className="flex-row items-start">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary">
-                <Sparkles color={colors.ink} size={18} />
-              </View>
-              <PressableScale
-                accessibilityLabel="Dismiss suggestion"
-                onPress={() =>
-                  void updateLocal((state) => ({
-                    ...state,
-                    dismissedTips: [...state.dismissedTips, tip.id],
-                  }))
-                }
-                className="ml-auto h-9 w-9 items-center justify-center rounded-full bg-muted"
-              >
-                <X color={colors.ink} size={16} />
-              </PressableScale>
+        <View className="mt-7 overflow-hidden rounded-[28px] bg-card p-5">
+          <View className="flex-row items-start">
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-primary">
+              <Sparkles color={colors.ink} size={18} />
             </View>
-            <T className="mt-5 text-xs uppercase tracking-widest text-muted-foreground">
-              One thing today
-            </T>
-            <T weight="extrabold" className="mt-1 text-2xl leading-8 text-ink">
-              {tip.title}
-            </T>
-            <T className="mt-2 text-sm leading-6 text-muted-foreground">{tip.body}</T>
-            <View className="mt-5 flex-row items-center">
-              <View className="rounded-full bg-accent px-3 py-1.5">
-                <T weight="bold" className="text-xs text-forest">
-                  {tip.impact} · {tip.points}
-                </T>
-              </View>
-              <PressableScale
-                onPress={() =>
-                  void updateLocal((state) => ({
-                    ...state,
-                    acceptedTips: [...state.acceptedTips, tip.id],
-                  }))
-                }
-                className="ml-auto flex-row items-center gap-2 rounded-full bg-secondary px-4 py-2.5"
-              >
-                <T weight="bold" className="text-sm text-cream">
-                  I’ll do it
-                </T>
-                <ArrowRight color={colors.cream} size={15} />
-              </PressableScale>
-            </View>
+            <Pressable
+              accessibilityLabel="Dismiss suggestion"
+              onPress={() =>
+                void updateLocal((state) => ({
+                  ...state,
+                  dismissedTips: [...state.dismissedTips, tip.id],
+                }))
+              }
+              className="ml-auto h-9 w-9 items-center justify-center rounded-full bg-muted"
+            >
+              <X color={colors.ink} size={16} />
+            </Pressable>
           </View>
-        </Rise>
+          <T className="mt-5 text-xs uppercase tracking-widest text-muted-foreground">
+            One thing today
+          </T>
+          <T weight="extrabold" className="mt-1 text-2xl leading-8 text-ink">
+            {tip.title}
+          </T>
+          <T className="mt-2 text-sm leading-6 text-muted-foreground">{tip.body}</T>
+          <View className="mt-5 flex-row items-center">
+            <View className="rounded-full bg-accent px-3 py-1.5">
+              <T weight="bold" className="text-xs text-forest">
+                {tip.impact} · {tip.points}
+              </T>
+            </View>
+            <Pressable
+              onPress={() =>
+                void updateLocal((state) => ({
+                  ...state,
+                  acceptedTips: [...state.acceptedTips, tip.id],
+                }))
+              }
+              className="ml-auto flex-row items-center gap-2 rounded-full bg-secondary px-4 py-2.5"
+            >
+              <T weight="bold" className="text-sm text-cream">
+                I’ll do it
+              </T>
+              <ArrowRight color={colors.cream} size={15} />
+            </Pressable>
+          </View>
+        </View>
       ) : null}
 
-      <Rise index={4}>
-        <View className="mb-3 mt-7 flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2">
-            <Trophy color={colors.forest} size={17} />
-            <T weight="extrabold" className="text-xl text-ink">
-              Community
+      <View className="mb-3 mt-7 flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <Trophy color={colors.forest} size={17} />
+          <T weight="extrabold" className="text-xl text-ink">
+            Community
+          </T>
+        </View>
+        <Pressable onPress={() => router.push('/leaderboard' as Href)}>
+          <T weight="bold" className="text-sm text-forest">
+            Full board
+          </T>
+        </Pressable>
+      </View>
+      <View className="flex-row rounded-[28px] bg-card px-3 py-5">
+        {model.ranks.slice(0, 3).map((row, index) => (
+          <View key={`${row.userId}-${row.rank}`} className="flex-1 items-center">
+            <View>
+              <Avatar name={row.name} uri={row.avatarUrl} size={index === 0 ? 54 : 46} />
+              <View className="absolute -right-1 -top-1 h-5 min-w-5 items-center rounded-full bg-primary px-1">
+                <T weight="extrabold" className="text-[10px] text-ink">
+                  {row.rank}
+                </T>
+              </View>
+            </View>
+            <T weight="bold" className="mt-2 text-center text-xs text-ink" numberOfLines={1}>
+              {row.userId === user?.id ? 'You' : firstName(row.name)}
+            </T>
+            <T className="mt-0.5 text-[10px] text-muted-foreground">
+              {formatCount(row.points)} pts
             </T>
           </View>
-          <PressableScale onPress={() => router.push('/leaderboard' as Href)}>
-            <T weight="bold" className="text-sm text-forest">
-              Full board
-            </T>
-          </PressableScale>
-        </View>
-        <View className="flex-row rounded-[28px] bg-card px-3 py-5">
-          {model.ranks.slice(0, 3).map((row, index) => (
-            <View key={`${row.userId}-${row.rank}`} className="flex-1 items-center">
-              <View>
-                <Avatar name={row.name} uri={row.avatarUrl} size={index === 0 ? 54 : 46} />
-                <View className="absolute -right-1 -top-1 h-5 min-w-5 items-center rounded-full bg-primary px-1">
-                  <T weight="extrabold" className="text-[10px] text-ink">
-                    {row.rank}
-                  </T>
-                </View>
-              </View>
-              <T weight="bold" className="mt-2 text-center text-xs text-ink" numberOfLines={1}>
-                {row.userId === user?.id ? 'You' : firstName(row.name)}
-              </T>
-              <T className="mt-0.5 text-[10px] text-muted-foreground">
-                {formatCount(row.points)} pts
-              </T>
-            </View>
-          ))}
-        </View>
-      </Rise>
+        ))}
+      </View>
 
       {model.next ? (
-        <Rise index={5}>
-          <PressableScale
-            onPress={() => router.push(`/event/${model.next?.slug}` as Href)}
-            className="mb-2 mt-3 flex-row items-center rounded-[24px] bg-accent p-4"
-          >
-            <View className="h-12 w-12 items-center justify-center rounded-full bg-card">
-              <CalendarDays color={colors.forest} size={20} />
-            </View>
-            <View className="ml-3 flex-1">
-              <T className="text-[10px] uppercase tracking-widest text-forest">Next nearby event</T>
-              <T weight="bold" className="mt-0.5 text-sm text-ink" numberOfLines={1}>
-                {model.next.title}
-              </T>
-              <T className="mt-0.5 text-xs text-forest" numberOfLines={1}>
-                {model.next.when} · {model.next.venue}
-              </T>
-            </View>
-            <ArrowRight color={colors.forest} size={18} />
-          </PressableScale>
-        </Rise>
+        <Pressable
+          onPress={() => router.push(`/event/${model.next?.slug}` as Href)}
+          className="mb-2 mt-3 flex-row items-center rounded-[24px] bg-accent p-4"
+        >
+          <View className="h-12 w-12 items-center justify-center rounded-full bg-card">
+            <CalendarDays color={colors.forest} size={20} />
+          </View>
+          <View className="ml-3 flex-1">
+            <T className="text-[10px] uppercase tracking-widest text-forest">Next nearby event</T>
+            <T weight="bold" className="mt-0.5 text-sm text-ink" numberOfLines={1}>
+              {model.next.title}
+            </T>
+            <T className="mt-0.5 text-xs text-forest" numberOfLines={1}>
+              {model.next.when} · {model.next.venue}
+            </T>
+          </View>
+          <ArrowRight color={colors.forest} size={18} />
+        </Pressable>
       ) : null}
     </Screen>
   );

@@ -1,8 +1,7 @@
 import { type Href, router } from 'expo-router';
 import { useState } from 'react';
-import { Image, ScrollView, View } from 'react-native';
+import { Image, Pressable, ScrollView, View } from 'react-native';
 import { Screen, TopBar } from '@/components/ui/header';
-import { PressableScale, Rise } from '@/components/ui/motion';
 import { Note, Pill } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
 import { EVENT_LABELS } from '@/data/content';
@@ -62,82 +61,78 @@ export default function Events() {
       ) : null}
       {loading ? <T className="text-muted-foreground">Looking for events…</T> : null}
       {featured ? (
-        <Rise>
-          <PressableScale
-            onPress={() => router.push(`/event/${featured.slug}` as Href)}
-            className="mb-4 overflow-hidden rounded-[28px] border-2 border-ink"
-            style={hardShadow}
-          >
-            {featured.coverUrl ? (
-              <Image source={{ uri: featured.coverUrl }} className="h-44 w-full" />
-            ) : (
-              <View className="h-44 bg-accent" />
-            )}
-            <View className="bg-card p-4">
-              <T className="text-xs uppercase tracking-wide text-forest">
-                {EVENT_LABELS[featured.type]}
-              </T>
-              <T weight="extrabold" className="text-2xl text-ink">
-                {featured.title}
-              </T>
-              <T className="mt-1 text-sm text-muted-foreground">
-                {formatWhen(featured.startAt, user?.timezone)} · {featured.venueName}
-              </T>
-            </View>
-          </PressableScale>
-        </Rise>
+        <Pressable
+          onPress={() => router.push(`/event/${featured.slug}` as Href)}
+          className="mb-4 overflow-hidden rounded-[28px] border-2 border-ink"
+          style={hardShadow}
+        >
+          {featured.coverUrl ? (
+            <Image source={{ uri: featured.coverUrl }} className="h-44 w-full" />
+          ) : (
+            <View className="h-44 bg-accent" />
+          )}
+          <View className="bg-card p-4">
+            <T className="text-xs uppercase tracking-wide text-forest">
+              {EVENT_LABELS[featured.type]}
+            </T>
+            <T weight="extrabold" className="text-2xl text-ink">
+              {featured.title}
+            </T>
+            <T className="mt-1 text-sm text-muted-foreground">
+              {formatWhen(featured.startAt, user?.timezone)} · {featured.venueName}
+            </T>
+          </View>
+        </Pressable>
       ) : null}
       {registered.length > 0 ? (
         <View className="mb-4">
           <T weight="extrabold" className="mb-2 text-lg text-ink">
             Your pass
           </T>
-          {registered.map((event, index) => (
-            <Rise key={event.slug} index={index}>
-              <PressableScale
-                onPress={() => router.push(`/event/${event.slug}` as Href)}
-                className="mb-2 rounded-[22px] bg-card p-4"
-              >
-                <T weight="bold" className="text-ink">
-                  {event.title}
-                </T>
-                <T className="text-sm text-forest">{event.sample ? 'Device pass' : 'Registered'}</T>
-              </PressableScale>
-            </Rise>
+          {registered.map((event) => (
+            <Pressable
+              key={event.slug}
+              onPress={() => router.push(`/event/${event.slug}` as Href)}
+              className="mb-2 rounded-[22px] bg-card p-4"
+            >
+              <T weight="bold" className="text-ink">
+                {event.title}
+              </T>
+              <T className="text-sm text-forest">{event.sample ? 'Device pass' : 'Registered'}</T>
+            </Pressable>
           ))}
         </View>
       ) : null}
       <View className="gap-3">
-        {events.slice(1).map((event, index) => (
-          <Rise key={event.slug} index={index}>
-            <PressableScale
-              onPress={() => router.push(`/event/${event.slug}` as Href)}
-              className="overflow-hidden rounded-[24px] bg-card"
-            >
-              <View className="flex-row">
-                {event.coverUrl ? (
-                  <Image source={{ uri: event.coverUrl }} className="h-28 w-28" />
-                ) : (
-                  <View className="h-28 w-28 bg-accent" />
-                )}
-                <View className="flex-1 justify-center px-3">
-                  <T className="text-[11px] uppercase text-forest">
-                    {EVENT_LABELS[event.type]}
-                    {event.audience === 'organization' ? ' · Organization' : ''}
+        {events.slice(1).map((event) => (
+          <Pressable
+            key={event.slug}
+            onPress={() => router.push(`/event/${event.slug}` as Href)}
+            className="overflow-hidden rounded-[24px] bg-card"
+          >
+            <View className="flex-row">
+              {event.coverUrl ? (
+                <Image source={{ uri: event.coverUrl }} className="h-28 w-28" />
+              ) : (
+                <View className="h-28 w-28 bg-accent" />
+              )}
+              <View className="flex-1 justify-center px-3">
+                <T className="text-[11px] uppercase text-forest">
+                  {EVENT_LABELS[event.type]}
+                  {event.audience === 'organization' ? ' · Organization' : ''}
+                </T>
+                <T weight="bold" className="text-base text-ink" numberOfLines={2}>
+                  {event.title}
+                </T>
+                <T className="text-xs text-muted-foreground">{event.venueName}</T>
+                {event.pointsLabel && event.sample ? (
+                  <T weight="bold" className="mt-1 text-xs text-forest">
+                    {event.pointsLabel} sample
                   </T>
-                  <T weight="bold" className="text-base text-ink" numberOfLines={2}>
-                    {event.title}
-                  </T>
-                  <T className="text-xs text-muted-foreground">{event.venueName}</T>
-                  {event.pointsLabel && event.sample ? (
-                    <T weight="bold" className="mt-1 text-xs text-forest">
-                      {event.pointsLabel} sample
-                    </T>
-                  ) : null}
-                </View>
+                ) : null}
               </View>
-            </PressableScale>
-          </Rise>
+            </View>
+          </Pressable>
         ))}
       </View>
       {!loading && events.length === 0 ? (

@@ -1,9 +1,7 @@
 import { type Href, Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PressableScale } from '@/components/ui/motion';
 import { Button, Field, Note } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
 import { errorMessage } from '@/lib/errors';
@@ -71,87 +69,85 @@ export default function Register() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeInDown.duration(360)}>
-          <T weight="extrabold" className="text-4xl text-ink">
-            Create your account
-          </T>
-          <T className="mt-2 text-base leading-6 text-muted-foreground">
-            Individuals and organization employees use the same EcoLife login.
-          </T>
-          <View className="mt-6 flex-row rounded-full border-2 border-ink bg-card p-1">
-            <TypeChip
-              label="Individual"
-              active={accountType === 'individual'}
-              onPress={() => setAccountType('individual')}
-            />
-            <TypeChip
-              label="Employee"
-              active={accountType === 'employee'}
-              onPress={() => setAccountType('employee')}
-            />
-          </View>
-          <View className="mt-6 gap-4">
-            <Field
-              label="Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="Your name"
-              autoComplete="name"
-            />
-            <Field
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-            />
-            <Field
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="At least 10 characters"
-              secureTextEntry
-              autoCapitalize="none"
-            />
-            {accountType === 'employee' ? (
-              <>
-                <Field
-                  label="Employee ID"
-                  value={employeeId}
-                  onChangeText={setEmployeeId}
-                  placeholder="NW-10482"
-                  autoCapitalize="characters"
-                />
-                <Field
-                  label="Organization"
-                  value={organizationName}
-                  onChangeText={setOrganizationName}
-                  placeholder="Company name"
-                />
-                <Note>
-                  EcoLife creates your account now. Your employee ID is kept on this phone until the
-                  organization link is available.
-                </Note>
-              </>
-            ) : null}
-            {error ? (
-              <T weight="semibold" className="text-sm text-destructive">
-                {error}
-              </T>
-            ) : null}
-            <Button label="Create account" onPress={() => void submit()} loading={pending} />
-          </View>
-          <View className="mt-8 flex-row justify-center gap-1">
-            <T className="text-muted-foreground">Already have an account?</T>
-            <Link href={'/login' as Href}>
-              <T weight="bold" className="text-forest">
-                Sign in
-              </T>
-            </Link>
-          </View>
-        </Animated.View>
+        <T weight="extrabold" className="text-4xl text-ink">
+          Create your account
+        </T>
+        <T className="mt-2 text-base leading-6 text-muted-foreground">
+          Individuals and organization employees use the same EcoLife login.
+        </T>
+        <View className="mt-6 flex-row rounded-full border-2 border-ink bg-card p-1">
+          <TypeChip
+            label="Individual"
+            active={accountType === 'individual'}
+            onPress={() => setAccountType('individual')}
+          />
+          <TypeChip
+            label="Employee"
+            active={accountType === 'employee'}
+            onPress={() => setAccountType('employee')}
+          />
+        </View>
+        <View className="mt-6 gap-4">
+          <Field
+            label="Name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            autoComplete="name"
+          />
+          <Field
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+          <Field
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="At least 10 characters"
+            secureTextEntry
+            autoCapitalize="none"
+          />
+          {accountType === 'employee' ? (
+            <>
+              <Field
+                label="Employee ID"
+                value={employeeId}
+                onChangeText={setEmployeeId}
+                placeholder="NW-10482"
+                autoCapitalize="characters"
+              />
+              <Field
+                label="Organization"
+                value={organizationName}
+                onChangeText={setOrganizationName}
+                placeholder="Company name"
+              />
+              <Note>
+                EcoLife creates your account now. Your employee ID is kept on this phone until the
+                organization link is available.
+              </Note>
+            </>
+          ) : null}
+          {error ? (
+            <T weight="semibold" className="text-sm text-destructive">
+              {error}
+            </T>
+          ) : null}
+          <Button label="Create account" onPress={() => void submit()} loading={pending} />
+        </View>
+        <View className="mt-8 flex-row justify-center gap-1">
+          <T className="text-muted-foreground">Already have an account?</T>
+          <Link href={'/login' as Href}>
+            <T weight="bold" className="text-forest">
+              Sign in
+            </T>
+          </Link>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -167,7 +163,7 @@ function TypeChip({
   onPress: () => void;
 }) {
   return (
-    <PressableScale
+    <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       onPress={onPress}
@@ -176,6 +172,6 @@ function TypeChip({
       <T weight="bold" className="text-ink">
         {label}
       </T>
-    </PressableScale>
+    </Pressable>
   );
 }

@@ -34,7 +34,6 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-font',
-    'expo-asset',
     'expo-secure-store',
     'expo-sqlite',
     [
@@ -43,6 +42,17 @@ const config: ExpoConfig = {
         // Sprint 3 (event scanner, §10.4). Declared now so the permission copy is reviewed once.
         cameraPermission: 'EcoLife uses the camera to scan event passes at check-in.',
         recordAudioAndroid: false,
+      },
+    ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'EcoLife reads this phone’s location to measure today’s commute.',
+        locationAlwaysAndWhenInUsePermission:
+          'EcoLife reads this phone’s location to measure today’s commute.',
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
       },
     ],
   ],
