@@ -26,7 +26,15 @@
   },
   "linter": {
     "enabled": true,
-    "rules": { "preset": "recommended" }
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noReactNativeRawText": {
+          "level": "error",
+          "options": { "skip": ["T", "Note"] }
+        }
+      }
+    }
   },
   "assist": {
     "enabled": true,

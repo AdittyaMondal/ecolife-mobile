@@ -16,33 +16,44 @@
     "test": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-envelope.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/instrument-serif": "^0.4.1",
+    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@react-native-community/netinfo": "12.0.1",
     "@tanstack/query-async-storage-persister": "5.105.0",
     "@tanstack/react-query": "5.105.0",
     "@tanstack/react-query-persist-client": "5.105.0",
     "expo": "58.0.21",
+    "expo-asset": "~58.0.19",
     "expo-camera": "~58.0.14",
     "expo-constants": "~58.0.14",
+    "expo-file-system": "~58.0.13",
+    "expo-font": "~58.0.11",
+    "expo-gl": "~58.0.4",
     "expo-linking": "~58.0.15",
-    "expo-router": "58.0.28",
+    "expo-router": "~58.0.29",
     "expo-secure-store": "~58.0.2",
     "expo-sqlite": "~58.0.14",
     "expo-status-bar": "~58.0.4",
+    "expo-three": "^8.0.0",
     "lucide-react-native": "^1.65.0",
     "nativewind": "4.2.7",
     "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-native": "0.88.1",
     "react-native-qrcode-svg": "^6.3.48",
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.1",
     "react-native-svg": "15.16.0",
+    "react-native-web": "^0.21.4",
     "react-native-worklets": "0.13.0",
+    "three": "^0.166.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@types/react": "~19.3.0",
+    "@types/three": "^0.166.0",
     "openapi-typescript": "7.13.0",
     "tailwindcss": "3.4.17",
     "typescript": "5.9.3"
@@ -51,7 +62,8 @@
     "install": {
       "exclude": [
         "typescript",
-        "react"
+        "react",
+        "react-dom"
       ]
     }
   }

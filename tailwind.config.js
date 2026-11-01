@@ -8,6 +8,14 @@ module.exports = {
   theme: {
     extend: {
       colors: require('./design-tokens.json'),
+      fontFamily: {
+        sans: ['PlusJakartaSans_500Medium'],
+        regular: ['PlusJakartaSans_400Regular'],
+        medium: ['PlusJakartaSans_500Medium'],
+        semibold: ['PlusJakartaSans_600SemiBold'],
+        bold: ['PlusJakartaSans_700Bold'],
+        extrabold: ['PlusJakartaSans_800ExtraBold'],
+      },
     },
   },
   plugins: [],

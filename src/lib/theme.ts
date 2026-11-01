@@ -1,16 +1,9 @@
 import tokens from '../../design-tokens.json';
 
 /**
- * Hex values for the places a NativeWind `className` cannot reach — navigator options,
- * `StatusBar`, SVG props. Same source as the Tailwind theme, so they cannot drift.
- *
- * Values are mirrored from ecolife-web/src/app/globals.css. Never edit them here or in
- * design-tokens.json — change them in the web repo first, then copy. Two of them look
- * wrong and are not:
- *   - primary-foreground is eco-950, not white. White on eco-600 is 3.30:1 and fails AA
- *     for button text; eco-950 on eco-600 is 4.52:1.
- *   - input is DARKER than border. border is decorative (dividers, card edges); input is a
- *     control boundary and has to clear WCAG 2.2's 3:1. Do not swap them.
+ * Hex values for navigator options, StatusBar and SVG. Same file as the Tailwind theme.
+ * Palette follows Colorpallete.md: primary #A8DB36, secondary #244D36, tertiary #83C43C,
+ * neutral #202820, on a light cream ground.
  */
 export const colors = {
   eco: tokens.eco,
@@ -28,9 +21,14 @@ export const colors = {
   input: tokens.input.DEFAULT,
   ring: tokens.ring.DEFAULT,
   destructive: tokens.destructive.DEFAULT,
+  ink: tokens.ink.DEFAULT,
+  forest: tokens.forest.DEFAULT,
+  lime: tokens.lime.DEFAULT,
+  leaf: tokens.leaf.DEFAULT,
+  cream: tokens.cream.DEFAULT,
+  clay: tokens.clay.DEFAULT,
 } as const;
 
-/** The same set for dark mode, for the same non-className surfaces. */
 export const darkColors = {
   eco: tokens.eco,
   background: tokens.background.dark,
@@ -47,4 +45,10 @@ export const darkColors = {
   input: tokens.input.dark,
   ring: tokens.ring.dark,
   destructive: tokens.destructive.dark,
+  ink: tokens.ink.dark,
+  forest: tokens.forest.dark,
+  lime: tokens.lime.dark,
+  leaf: tokens.leaf.dark,
+  cream: tokens.cream.dark,
+  clay: tokens.clay.dark,
 } as const;

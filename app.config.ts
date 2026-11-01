@@ -11,7 +11,8 @@ const config: ExpoConfig = {
   version: '0.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  userInterfaceStyle: 'automatic',
+  userInterfaceStyle: 'light',
+  backgroundColor: '#F4F6EE',
   ios: {
     bundleIdentifier: 'app.ecolife.mobile',
     supportsTablet: false,
@@ -22,7 +23,7 @@ const config: ExpoConfig = {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
-      backgroundColor: '#f0fdf4',
+      backgroundColor: '#F4F6EE',
     },
     predictiveBackGestureEnabled: false,
   },
@@ -32,6 +33,8 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+    'expo-font',
+    'expo-asset',
     'expo-secure-store',
     'expo-sqlite',
     [

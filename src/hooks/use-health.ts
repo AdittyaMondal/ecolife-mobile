@@ -1,7 +1,7 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/fetcher';
 import { qk } from '@/lib/query-keys';
-import type { Liveness } from '@/types/api';
+import type { Liveness } from '@/types/domain';
 
 /**
  * One hook module per resource (PRD-v2 §9.2). `health` is the only one Sprint 0 needs — it is

@@ -1,7 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import { ScreenPlaceholder } from '@/components/screen-placeholder';
+import { type Href, Redirect } from 'expo-router';
 
-export default function OnboardingStep() {
-  const { step } = useLocalSearchParams<{ step: string }>();
-  return <ScreenPlaceholder title={`Onboarding — step ${step ?? '?'}`} />;
+export default function LegacyOnboardingStep() {
+  return <Redirect href={'/onboarding' as Href} />;
 }

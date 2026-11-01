@@ -1,9 +1,9 @@
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import Storage from 'expo-sqlite/kv-store';
 import type { ReactNode } from 'react';
 import { ApiError } from '@/lib/fetcher';
+import { kv } from '@/lib/kv';
 
 /** PRD-v2 §9.2. Same defaults as the web app so the two caches behave identically. */
 const queryClient = new QueryClient({
@@ -16,6 +16,7 @@ const queryClient = new QueryClient({
         if (error instanceof ApiError && error.httpStatus >= 400 && error.httpStatus < 500) {
           return false;
         }
+        if (error instanceof ApiError && error.httpStatus === 501) return false;
         return failureCount < 2;
       },
     },
@@ -28,7 +29,7 @@ const queryClient = new QueryClient({
  * display and the daily log rely on (PRD-v2 §10.3).
  */
 const persister = createAsyncStoragePersister({
-  storage: Storage,
+  storage: kv,
   key: 'ecolife.query-cache',
 });
 
