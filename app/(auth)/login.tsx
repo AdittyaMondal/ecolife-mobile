@@ -2,7 +2,6 @@ import { type Href, Link } from 'expo-router';
 import { Eye, EyeOff, Leaf } from 'lucide-react-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Field } from '@/components/ui/primitives';
 import { T } from '@/components/ui/text';
@@ -53,64 +52,62 @@ export default function Login() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeInDown.duration(360)}>
-          <View className="mb-8 h-16 w-16 items-center justify-center rounded-full border-2 border-ink bg-secondary">
-            <Leaf color={colors.lime} size={30} />
-          </View>
-          <T weight="extrabold" className="text-4xl text-ink">
-            Welcome back
-          </T>
-          <T className="mt-2 text-base leading-6 text-muted-foreground">
-            Sign in with the email and password on your EcoLife account.
-          </T>
-          <View className="mt-8 gap-4">
+        <View className="mb-8 h-16 w-16 items-center justify-center rounded-full border-2 border-ink bg-secondary">
+          <Leaf color={colors.lime} size={30} />
+        </View>
+        <T weight="extrabold" className="text-4xl text-ink">
+          Welcome back
+        </T>
+        <T className="mt-2 text-base leading-6 text-muted-foreground">
+          Sign in with the email and password on your EcoLife account.
+        </T>
+        <View className="mt-8 gap-4">
+          <Field
+            label="Email"
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+          />
+          <View>
             <Field
-              label="Email"
+              label="Password"
+              secureTextEntry={!show}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="At least 10 characters"
               autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
             />
-            <View>
-              <Field
-                label="Password"
-                secureTextEntry={!show}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="At least 10 characters"
-                autoCapitalize="none"
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={show ? 'Hide password' : 'Show password'}
-                onPress={() => setShow((value) => !value)}
-                className="absolute right-3 top-9 h-11 w-11 items-center justify-center"
-              >
-                {show ? (
-                  <EyeOff color={colors.ink} size={18} />
-                ) : (
-                  <Eye color={colors.ink} size={18} />
-                )}
-              </Pressable>
-            </View>
-            {error ? (
-              <T weight="semibold" className="text-sm text-destructive">
-                {error}
-              </T>
-            ) : null}
-            <Button label="Sign in" onPress={() => void submit()} loading={pending} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={show ? 'Hide password' : 'Show password'}
+              onPress={() => setShow((value) => !value)}
+              className="absolute right-3 top-9 h-11 w-11 items-center justify-center"
+            >
+              {show ? (
+                <EyeOff color={colors.ink} size={18} />
+              ) : (
+                <Eye color={colors.ink} size={18} />
+              )}
+            </Pressable>
           </View>
-          <View className="mt-8 flex-row justify-center gap-1">
-            <T className="text-muted-foreground">New to EcoLife?</T>
-            <Link href={'/register' as Href}>
-              <T weight="bold" className="text-forest">
-                Create an account
-              </T>
-            </Link>
-          </View>
-        </Animated.View>
+          {error ? (
+            <T weight="semibold" className="text-sm text-destructive">
+              {error}
+            </T>
+          ) : null}
+          <Button label="Sign in" onPress={() => void submit()} loading={pending} />
+        </View>
+        <View className="mt-8 flex-row justify-center gap-1">
+          <T className="text-muted-foreground">New to EcoLife?</T>
+          <Link href={'/register' as Href}>
+            <T weight="bold" className="text-forest">
+              Create an account
+            </T>
+          </Link>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect } from 'react';
 import {
   CATEGORY_META,
   ORG_QUESTIONS,
@@ -15,11 +15,12 @@ import { ApiError, api } from '@/lib/fetcher';
 import { coinsForPaise, formatWhen } from '@/lib/format';
 import { daysAgoISO, todayISO, uuid } from '@/lib/ids';
 import { shownCoins, shownPoints } from '@/lib/local-state';
-import { asHistory, asRankRows, normalizeRank, unwrapList } from '@/lib/normalizers';
+import { asHistory, asRankRows, normalizeRank, pageInfo, unwrapList } from '@/lib/normalizers';
 import { qk } from '@/lib/query-keys';
 import { useAuth } from '@/providers/auth-provider';
 import type {
   Address,
+  AddressInput,
   Breakdown,
   CartQuote,
   CatalogEvent,
@@ -35,8 +36,10 @@ import type {
   MyRank,
   NotificationItem,
   Order,
+  OrderLine,
   OwnProfile,
   Product,
+  ProductSort,
   RankRow,
   RewardEntry,
   SubmitLogBody,
@@ -69,10 +72,31 @@ function asEvents(data: unknown): EventItem[] {
   });
 }
 
+function asOrderLine(item: unknown): OrderLine | null {
+  if (!isRecord(item)) return null;
+  const productName =
+    typeof item.productName === 'string'
+      ? item.productName
+      : typeof item.name === 'string'
+        ? item.name
+        : null;
+  if (!productName) return null;
+  return {
+    productName,
+    unitPaise: typeof item.unitPaise === 'number' ? item.unitPaise : 0,
+    quantity: typeof item.quantity === 'number' ? item.quantity : 1,
+  };
+}
+
 function asOrders(data: unknown): Order[] {
-  return unwrapList(data).filter((item): item is Order => {
-    if (!isRecord(item)) return false;
-    return typeof item.id === 'number' && typeof item.orderNumber === 'string';
+  return unwrapList(data).flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'number' || typeof item.orderNumber !== 'string') {
+      return [];
+    }
+    const lines = Array.isArray(item.items)
+      ? item.items.map(asOrderLine).filter((line): line is OrderLine => line !== null)
+      : [];
+    return [{ ...(item as Order), items: lines }];
   });
 }
 
@@ -471,35 +495,53 @@ export function useTrackModel() {
   };
 }
 
-export function useCatalog(category: string, q: string) {
+function sortSamples(items: CatalogProduct[], sort: ProductSort) {
+  const copy = [...items];
+  if (sort === 'price_asc') copy.sort((a, b) => a.pricePaise - b.pricePaise);
+  if (sort === 'price_desc') copy.sort((a, b) => b.pricePaise - a.pricePaise);
+  if (sort === 'co2_desc') copy.sort((a, b) => (b.co2SavedKg ?? 0) - (a.co2SavedKg ?? 0));
+  return copy;
+}
+
+export function useCatalog(category: string, q: string, sort: ProductSort = 'newest') {
   const { user } = useAuth();
-  const params = new URLSearchParams();
-  if (category && category !== 'all') params.set('category', category);
-  if (q.trim()) params.set('q', q.trim());
-  const query = useQuery({
-    queryKey: qk.products(category, q.trim()),
+  const query = useInfiniteQuery({
+    queryKey: qk.products(category, q.trim(), sort),
     enabled: Boolean(user),
-    queryFn: () => api.get<unknown>(`/marketplace/products?${params.toString()}`),
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ limit: '12', sort });
+      if (category && category !== 'all') params.set('category', category);
+      if (q.trim()) params.set('q', q.trim());
+      if (pageParam) params.set('cursor', pageParam);
+      return api.get<unknown>(`/marketplace/products?${params.toString()}`);
+    },
+    getNextPageParam: (last) => {
+      const page = pageInfo(last);
+      return page.hasMore && page.nextCursor ? page.nextCursor : undefined;
+    },
   });
-  const remote = query.data
-    ? asProducts(query.data).map((item) => decorateProduct(item, false))
-    : [];
-  const samples = SAMPLE_PRODUCTS.filter((item) => {
-    const cat = category === 'all' || item.category === category;
-    const text = `${item.name} ${item.description ?? ''}`
-      .toLowerCase()
-      .includes(q.trim().toLowerCase());
-    return cat && text;
-  });
-  const products = remote.length > 0 ? remote : query.isPending ? [] : samples;
+  const remote = (query.data?.pages ?? []).flatMap((page) =>
+    asProducts(page).map((item) => decorateProduct(item, false)),
+  );
+  const needle = q.trim().toLowerCase();
+  const samples = sortSamples(
+    SAMPLE_PRODUCTS.filter((item) => {
+      const cat = category === 'all' || item.category === category;
+      const text = `${item.name} ${item.description ?? ''}`.toLowerCase().includes(needle);
+      return cat && text;
+    }).map((item) => decorateProduct(item, true)),
+    sort,
+  );
+  const live = remote.length > 0;
   return {
-    products,
-    source: remote.length > 0 ? ('api' as const) : ('device' as const),
-    loading: query.isPending && remote.length === 0,
-    error:
-      query.isError && remote.length === 0 && !isUnavailable(query.error)
-        ? errorMessage(query.error)
-        : null,
+    products: live ? remote : query.isPending ? [] : samples,
+    source: live ? ('api' as const) : ('device' as const),
+    loading: query.isPending && !live,
+    error: query.isError && !live && !isUnavailable(query.error) ? errorMessage(query.error) : null,
+    hasMore: live && Boolean(query.hasNextPage),
+    loadMore: () => query.fetchNextPage(),
+    loadingMore: query.isFetchingNextPage,
   };
 }
 
@@ -692,15 +734,45 @@ export function useRewards() {
 
 export function useOrders() {
   const { user, local } = useAuth();
-  const query = useQuery({
+  const query = useInfiniteQuery({
     queryKey: qk.orders(user?.id ?? 0),
     enabled: Boolean(user),
-    queryFn: () => api.get<unknown>('/marketplace/orders?limit=30'),
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ limit: '15' });
+      if (pageParam) params.set('cursor', pageParam);
+      return api.get<unknown>(`/marketplace/orders?${params.toString()}`);
+    },
+    getNextPageParam: (last) => {
+      const page = pageInfo(last);
+      return page.hasMore && page.nextCursor ? page.nextCursor : undefined;
+    },
   });
   return {
-    orders: query.data ? asOrders(query.data) : [],
+    orders: (query.data?.pages ?? []).flatMap((page) => asOrders(page)),
     deviceOrders: local.redemptions,
     loading: query.isPending,
+    hasMore: Boolean(query.hasNextPage),
+    loadMore: () => query.fetchNextPage(),
+    loadingMore: query.isFetchingNextPage,
+  };
+}
+
+export function useOrder(id: number) {
+  const query = useQuery({
+    queryKey: qk.order(id),
+    enabled: id > 0,
+    queryFn: async () => {
+      const raw = await api.get<unknown>(`/marketplace/orders/${id}`);
+      const order = asOrders({ items: [raw] })[0];
+      if (!order) throw new Error('That order is missing.');
+      return order;
+    },
+  });
+  return {
+    order: query.data ?? null,
+    loading: query.isPending,
+    error: query.isError ? errorMessage(query.error) : null,
   };
 }
 
@@ -731,19 +803,88 @@ export function useCart() {
     enabled: Boolean(user),
     queryFn: () => api.get<CartQuote>('/marketplace/cart'),
   });
-  const addresses = useQuery({
+  const count = query.data?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+  return {
+    cart: query.data ?? null,
+    count,
+    loading: query.isPending,
+    error: query.isError ? errorMessage(query.error) : null,
+    unavailable: query.isError && isUnavailable(query.error),
+    refetch: () => query.refetch(),
+  };
+}
+
+export function useAddresses() {
+  const { user } = useAuth();
+  const query = useQuery({
     queryKey: qk.addresses(user?.id ?? 0),
     enabled: Boolean(user),
     queryFn: () => api.get<unknown>('/addresses'),
   });
   return {
-    cart: query.data ?? null,
-    addresses: addresses.data ? asAddresses(addresses.data) : [],
+    addresses: query.data ? asAddresses(query.data) : [],
     loading: query.isPending,
-    error: query.isError ? errorMessage(query.error) : null,
-    unavailable: query.isError && isUnavailable(query.error),
-    refetch: () => Promise.all([query.refetch(), addresses.refetch()]),
+    refetch: () => query.refetch(),
   };
+}
+
+export function useShop() {
+  const { user } = useAuth();
+  const client = useQueryClient();
+  const cartKey = qk.cart(user?.id ?? 0);
+  const addressKey = qk.addresses(user?.id ?? 0);
+
+  const add = useCallback(
+    async (productId: number, quantity: number) => {
+      const cart = await api.post<CartQuote>('/marketplace/cart/items', { productId, quantity });
+      client.setQueryData(cartKey, cart);
+    },
+    [cartKey, client],
+  );
+  const setQuantity = useCallback(
+    async (productId: number, quantity: number) => {
+      const cart = await api.patch<CartQuote>(`/marketplace/cart/items/${productId}`, {
+        quantity,
+      });
+      client.setQueryData(cartKey, cart);
+    },
+    [cartKey, client],
+  );
+  const remove = useCallback(
+    async (productId: number) => {
+      const cart = await api.delete<CartQuote>(`/marketplace/cart/items/${productId}`);
+      client.setQueryData(cartKey, cart);
+    },
+    [cartKey, client],
+  );
+  const preview = useCallback(
+    (offeredCoins: number) => api.post<CartQuote>('/marketplace/cart/preview', { offeredCoins }),
+    [],
+  );
+  const saveAddress = useCallback(
+    async (body: AddressInput, id?: number) => {
+      if (id) await api.patch(`/addresses/${id}`, body);
+      else await api.post('/addresses', body);
+      await client.invalidateQueries({ queryKey: addressKey });
+    },
+    [addressKey, client],
+  );
+  const removeAddress = useCallback(
+    async (id: number) => {
+      await api.delete(`/addresses/${id}`);
+      await client.invalidateQueries({ queryKey: addressKey });
+    },
+    [addressKey, client],
+  );
+  const makeDefault = useCallback(
+    async (id: number) => {
+      await api.patch(`/addresses/${id}`, { isDefault: true });
+      await client.invalidateQueries({ queryKey: addressKey });
+    },
+    [addressKey, client],
+  );
+
+  return { add, setQuantity, remove, preview, saveAddress, removeAddress, makeDefault };
 }
 
 export function usePass(eventId: number, enabled: boolean) {

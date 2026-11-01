@@ -42,6 +42,7 @@ export function emptyLocal(): LocalUserState {
     dismissedTips: [],
     acceptedTips: [],
     gameInterest: false,
+    commute: { home: null, work: null, distanceByMode: {} },
   };
 }
 
@@ -56,6 +57,11 @@ export async function readLocal(userId: number): Promise<LocalUserState> {
       checkInRewards: parsed.checkInRewards ?? {},
       logs: parsed.logs ?? {},
       pendingLogs: parsed.pendingLogs ?? [],
+      commute: {
+        home: parsed.commute?.home ?? null,
+        work: parsed.commute?.work ?? null,
+        distanceByMode: parsed.commute?.distanceByMode ?? {},
+      },
     };
   } catch {
     return emptyLocal();

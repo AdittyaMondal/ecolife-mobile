@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
 import { Bell, ChevronLeft, Menu } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMenu } from '@/components/menu-sheet';
 import { colors } from '@/lib/theme';
 import { useAuth } from '@/providers/auth-provider';
 import { Avatar } from './avatar';
-import { PressableScale } from './motion';
 import { T } from './text';
 
 export function Screen({
@@ -83,13 +82,13 @@ export function TopBar({
         </T>
       </View>
       {avatar && user ? (
-        <PressableScale
+        <Pressable
           accessibilityRole="button"
           accessibilityLabel="Profile"
           onPress={() => router.push('/profile')}
         >
           <Avatar name={user.name} uri={user.avatarUrl} />
-        </PressableScale>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -105,20 +104,20 @@ export function IconButton({
   label: string;
 }) {
   return (
-    <PressableScale
+    <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="h-11 w-11 items-center justify-center rounded-full border-2 border-ink bg-card"
+      className="h-11 w-11 items-center justify-center rounded-full border-2 border-ink bg-card active:opacity-80"
     >
       {children}
-    </PressableScale>
+    </Pressable>
   );
 }
 
 export function BellButton({ count, onPress }: { count: number; onPress: () => void }) {
   return (
-    <PressableScale
+    <Pressable
       accessibilityRole="button"
       accessibilityLabel="Notifications"
       onPress={onPress}
@@ -134,6 +133,6 @@ export function BellButton({ count, onPress }: { count: number; onPress: () => v
           </T>
         </View>
       ) : null}
-    </PressableScale>
+    </Pressable>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Avatar } from '@/components/ui/avatar';
 import { Screen, TopBar } from '@/components/ui/header';
 import { Note, Pill } from '@/components/ui/primitives';
@@ -64,12 +63,11 @@ export default function Leaderboard() {
         </View>
       ) : null}
       <View className="gap-2">
-        {rows.map((row, index) => {
+        {rows.map((row) => {
           const mine = row.userId === user?.id;
           return (
-            <Animated.View
+            <View
               key={`${row.rank}-${row.name}`}
-              entering={FadeInDown.duration(320).delay(Math.min(index, 8) * 40)}
               className={`flex-row items-center gap-3 rounded-[22px] px-3 py-3 ${mine ? 'bg-primary' : 'bg-card'}`}
             >
               <T weight="extrabold" className="w-8 text-lg text-ink">
@@ -85,7 +83,7 @@ export default function Leaderboard() {
               <T weight="extrabold" className="text-ink">
                 {formatCount(row.points)}
               </T>
-            </Animated.View>
+            </View>
           );
         })}
       </View>

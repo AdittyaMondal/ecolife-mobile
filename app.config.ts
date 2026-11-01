@@ -35,7 +35,6 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-font',
-    'expo-asset',
     'expo-secure-store',
     'expo-sqlite',
     [
@@ -52,6 +51,17 @@ const config: ExpoConfig = {
         icon: './assets/android-icon-foreground.png',
         color: '#1B4D3E',
         defaultChannel: 'default',
+      },
+    ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'EcoLife reads this phone’s location to measure today’s commute.',
+        locationAlwaysAndWhenInUsePermission:
+          'EcoLife reads this phone’s location to measure today’s commute.',
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
       },
     ],
   ],

@@ -107,6 +107,19 @@ export type OnboardingCompleteResult = {
 
 export type TripMode = NonNullable<OnboardingAnswers['primaryCommuteMode']>;
 
+export type CommutePlace = {
+  label: string;
+  placeId: string;
+  lat: number;
+  lng: number;
+};
+
+export type SavedCommute = {
+  home: CommutePlace | null;
+  work: CommutePlace | null;
+  distanceByMode: Partial<Record<TripMode, number>>;
+};
+
 export type DailyAnswers = {
   trips?: { mode: TripMode; km: number }[];
   vegMeals?: number;
@@ -216,6 +229,8 @@ export type MyRank = {
 
 export type ProductCategory = 'plants' | 'household' | 'personal_care' | 'kitchen' | 'stationery';
 
+export type ProductSort = 'newest' | 'price_asc' | 'price_desc' | 'co2_desc';
+
 export type Product = {
   id: number;
   slug: string;
@@ -230,6 +245,17 @@ export type Product = {
 
 export type Address = {
   id: number;
+  name: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault: boolean;
+};
+
+export type AddressInput = {
   name: string;
   phone: string;
   line1: string;
@@ -259,10 +285,16 @@ export type CartQuote = {
   capReached: boolean;
 };
 
+export type OrderLine = {
+  productName: string;
+  unitPaise: number;
+  quantity: number;
+};
+
 export type Order = {
   id: number;
   orderNumber: string;
-  items: object[];
+  items: OrderLine[];
   subtotalPaise: number;
   discountPaise: number;
   totalPaise: number;
@@ -398,6 +430,7 @@ export type LocalUserState = {
   dismissedTips: string[];
   acceptedTips: string[];
   gameInterest: boolean;
+  commute: SavedCommute;
 };
 
 export type RankRow = {

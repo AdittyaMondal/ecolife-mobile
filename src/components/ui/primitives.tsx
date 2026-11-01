@@ -1,6 +1,7 @@
 import { type ReactNode, useRef } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   TextInput,
   type TextInputProps,
   View,
@@ -8,7 +9,6 @@ import {
 } from 'react-native';
 import { clayShadow, hardShadow } from '@/lib/shadows';
 import { colors } from '@/lib/theme';
-import { PressableScale } from './motion';
 import { T } from './text';
 
 export function Button({
@@ -35,11 +35,11 @@ export function Button({
   }[variant];
   const text = variant === 'forest' ? 'text-cream' : 'text-ink';
   return (
-    <PressableScale
+    <Pressable
       accessibilityRole="button"
       disabled={busy}
       onPress={onPress}
-      className={`min-h-[52px] flex-row items-center justify-center gap-2 rounded-full border-2 px-5 ${palette} ${busy ? 'opacity-60' : ''}`}
+      className={`min-h-[52px] flex-row items-center justify-center gap-2 rounded-full border-2 px-5 ${palette} ${busy ? 'opacity-60' : 'active:opacity-80'}`}
       style={variant === 'ghost' ? undefined : hardShadow}
     >
       {loading ? (
@@ -50,7 +50,7 @@ export function Button({
       <T weight="bold" className={`text-base ${text}`}>
         {label}
       </T>
-    </PressableScale>
+    </Pressable>
   );
 }
 
@@ -149,9 +149,9 @@ export function Pill({
   );
   if (!onPress) return body;
   return (
-    <PressableScale accessibilityRole="button" onPress={onPress}>
+    <Pressable accessibilityRole="button" onPress={onPress} className="active:opacity-80">
       {body}
-    </PressableScale>
+    </Pressable>
   );
 }
 
@@ -169,11 +169,11 @@ export function ChoiceTile({
   compact?: boolean;
 }) {
   return (
-    <PressableScale
+    <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      className={`rounded-[20px] border-2 px-3 py-3 ${selected ? 'border-ink bg-primary' : 'border-border bg-card'} ${compact ? 'min-h-[64px] items-center justify-center' : 'min-h-[72px] justify-center'}`}
+      className={`rounded-[20px] border-2 px-3 py-3 active:opacity-80 ${selected ? 'border-ink bg-primary' : 'border-border bg-card'} ${compact ? 'min-h-[64px] items-center justify-center' : 'min-h-[72px] justify-center'}`}
       style={selected ? hardShadow : undefined}
     >
       <T weight="bold" className={`text-center text-ink ${compact ? 'text-sm' : 'text-base'}`}>
@@ -184,7 +184,7 @@ export function ChoiceTile({
           {hint}
         </T>
       ) : null}
-    </PressableScale>
+    </Pressable>
   );
 }
 
@@ -249,11 +249,11 @@ export function SectionTitle({
         {title}
       </T>
       {action && onAction ? (
-        <PressableScale onPress={onAction} accessibilityRole="button">
+        <Pressable onPress={onAction} accessibilityRole="button">
           <T weight="bold" className="text-sm text-forest">
             {action}
           </T>
-        </PressableScale>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -274,7 +274,7 @@ export function Stepper({
 }) {
   return (
     <View className="flex-row items-center justify-between rounded-[22px] border-2 border-ink bg-card px-2 py-2">
-      <PressableScale
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel="Decrease"
         onPress={() => onChange(Math.max(min, value - 1))}
@@ -283,14 +283,14 @@ export function Stepper({
         <T weight="extrabold" className="text-2xl text-ink">
           −
         </T>
-      </PressableScale>
+      </Pressable>
       <View className="items-center">
         <T weight="extrabold" className="text-3xl text-ink">
           {value}
         </T>
         {suffix ? <T className="text-xs text-muted-foreground">{suffix}</T> : null}
       </View>
-      <PressableScale
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel="Increase"
         onPress={() => onChange(Math.min(max, value + 1))}
@@ -299,7 +299,7 @@ export function Stepper({
         <T weight="extrabold" className="text-2xl text-ink">
           +
         </T>
-      </PressableScale>
+      </Pressable>
     </View>
   );
 }

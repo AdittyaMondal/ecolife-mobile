@@ -9,15 +9,10 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { type ErrorBoundaryProps, type Href, Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { useEffect } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { CommuteRecorder } from '@/components/commute-recorder';
 import { MenuProvider } from '@/components/menu-sheet';
 import {
   registerForPushNotificationsAsync,
@@ -26,7 +21,6 @@ import {
 import { colors } from '@/lib/theme';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { QueryProvider } from '@/providers/query-provider';
-import '@/components/ui/motion';
 import '../global.css';
 
 function Gate() {
@@ -63,25 +57,6 @@ function Gate() {
   }, [auth.onboardingDone, auth.status, router, segments]);
 
   return null;
-}
-
-function BootCover({ hide }: { hide: boolean }) {
-  const opacity = useSharedValue(hide ? 0 : 1);
-  const [gone, setGone] = useState(false);
-  useEffect(() => {
-    if (!hide || gone) return;
-    opacity.value = withTiming(0, { duration: 280 }, (finished) => {
-      if (finished) runOnJS(setGone)(true);
-    });
-  }, [gone, hide, opacity]);
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  if (gone) return null;
-  return (
-    <Animated.View
-      pointerEvents={hide ? 'none' : 'auto'}
-      style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }, style]}
-    />
-  );
 }
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
@@ -132,6 +107,7 @@ export default function RootLayout() {
         <AuthProvider>
           <MenuProvider>
             <StatusBar style="dark" />
+            <CommuteRecorder />
             <View className="flex-1 items-center bg-muted">
               <View className="h-full w-full max-w-[440px] flex-1 bg-background">
                 <Stack
@@ -139,7 +115,6 @@ export default function RootLayout() {
                     headerShown: false,
                     contentStyle: { backgroundColor: colors.background },
                     animation: 'slide_from_right',
-                    animationDuration: 320,
                   }}
                 >
                   <Stack.Screen name="(tabs)" />
@@ -148,7 +123,18 @@ export default function RootLayout() {
                   <Stack.Screen name="onboarding/[step]" />
                 </Stack>
                 {ready ? <Gate /> : null}
-                <BootCover hide={ready} />
+                {ready ? null : (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      bottom: 0,
+                      left: 0,
+                      backgroundColor: colors.background,
+                    }}
+                  />
+                )}
               </View>
             </View>
           </MenuProvider>
