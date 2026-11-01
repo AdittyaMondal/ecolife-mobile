@@ -44,8 +44,25 @@ function skipRefresh(path: string): boolean {
 type HttpResult = { status: number; text: string; headerText: string };
 
 /**
- * XMLHttpRequest, not fetch: the live API returns the refresh token only as the
- * `ecolife_session` cookie, and fetch hides `Set-Cookie` from script.
+ * Identifies this client as native, so the server puts the refresh token in
+ * `session.refreshToken` for expo-secure-store rather than only in an httpOnly
+ * cookie (the server's `deliverRefresh`, and CLAUDE.md §4.1.0).
+ *
+ * Without it the server treats us as a browser and the token arrives ONLY as a
+ * Set-Cookie. That made session persistence depend on scraping a cookie whose
+ * name the server treats as configurable — `SESSION_COOKIE_NAME`, which is
+ * `ecolife_session` on the deployment but `ecolife_refresh` by default. The
+ * regex below hardcodes one of them, so mobile worked against one environment
+ * and silently lost the session on the other. Declaring the platform removes
+ * the coupling: the token comes back in the body and the cookie name stops
+ * mattering.
+ */
+const PLATFORM_HEADER = { 'x-ecolife-platform': 'android' } as const;
+
+/**
+ * XMLHttpRequest, not fetch: the cookie fallback below reads `Set-Cookie`,
+ * which fetch hides from script. Kept as a fallback for a server that has not
+ * been told our platform, but PLATFORM_HEADER means the body token is used.
  */
 function http(url: string, init?: RequestInit): Promise<HttpResult> {
   return new Promise((resolve, reject) => {
@@ -82,7 +99,9 @@ function refreshFromHeaders(
   bodyToken: string | null | undefined,
 ): string | null {
   if (bodyToken) return bodyToken;
-  const match = headerText.match(/ecolife_session=([^;\s,]+)/i);
+  // Either name the server may be configured with (SESSION_COOKIE_NAME).
+  // Only a fallback now: PLATFORM_HEADER means the body token is normally set.
+  const match = headerText.match(/ecolife_(?:session|refresh)=([^;\s,]+)/i);
   return match?.[1] ?? null;
 }
 
@@ -122,7 +141,11 @@ async function rotateSession(): Promise<boolean> {
   try {
     const res = await http(`${BASE_URL}/auth/refresh`, {
       method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...PLATFORM_HEADER,
+      },
       body: JSON.stringify({ refreshToken }),
     });
     const envelope: Envelope<Session> = toEnvelope<Session>(parseBody(res.text), res.status);
@@ -161,6 +184,10 @@ export async function request<T>(path: string, init?: RequestInit, attempt = 0):
       ...init,
       headers: {
         Accept: 'application/json',
+        // Declares us as a native client, so the server returns the refresh
+        // token in `session.refreshToken` instead of only as a cookie. See
+        // PLATFORM_HEADER below for why that matters.
+        ...PLATFORM_HEADER,
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...init?.headers,
